@@ -16,6 +16,7 @@ packages = ["releasetools"]
 
 [tool.semantic_release]
 branch = "main"
+commit_parser = "releasetools.commit_parser:SetmacCommitParser"
 version_toml = ["pyproject.toml:project.version", "cli/pyproject.toml:project.version"]
 build_command = "bash scripts/release-build.sh"
 upload_to_vcs_release = true
