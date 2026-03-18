@@ -65,7 +65,7 @@ CLI stdout emits one JSON object per line:
 Thread-safe via `threading.Lock()` in `output.py`.
 
 ### CLIBridge.swift
-- Dev mode: spawns `uv run --project cli setmac <args>`
+- Dev mode: runs `cli/.venv/bin/setmac` directly (bypasses `uv` to avoid GUI hangs). Falls back to `uv run --frozen` if venv not set up.
 - Bundle mode: runs embedded `Contents/MacOS/setmac-cli <args>`
 - Uses `readabilityHandler` + `terminationHandler` (not async iteration)
 - Sets rich PATH for subprocess tools (homebrew, cargo, bun, etc.)
