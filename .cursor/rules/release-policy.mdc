@@ -1,0 +1,16 @@
+---
+description: Release, versioning, and signing policy for setmac
+alwaysApply: true
+---
+
+# Release Policy
+
+- Use Conventional Commits and keep one logical change per commit.
+- Let semantic-release own version bumps. Never hand-edit release versions in `pyproject.toml`, `cli/pyproject.toml`, `justfile`, `scripts/bundle.sh`, or `__init__.py`.
+- Default to prereleases: push `canary` for `-canary.N`, push `beta` for `-beta.N`.
+- Only publish stable when the user explicitly asks. Stable releases run through the manual `Release Stable` workflow from `main`.
+- Keep release artifacts as `dist/Setmac.dmg` and `cli/dist/setmac-cli`.
+- Release builds must run through `scripts/release-build.sh`, which signs artifacts and only notarizes when Apple secrets are configured.
+- If Apple signing secrets are missing, treat builds as ad-hoc signed and include the Gatekeeper workaround in release/install notes:
+  - `xattr -cr /Applications/Setmac.app`
+  - or Control-click `Setmac.app` and choose `Open`
