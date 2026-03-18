@@ -15,11 +15,8 @@ private final class PipeBuffer: @unchecked Sendable {
         lock.unlock()
     }
 
-    func finalize(_ remaining: Data) -> Data {
+    func finalize() -> Data {
         lock.lock()
-        if !remaining.isEmpty {
-            data.append(remaining)
-        }
         let result = data
         lock.unlock()
         return result
@@ -45,22 +42,30 @@ actor CLIBridge {
                 process.executableURL = cli
                 process.arguments = args
             } else {
-                // Dev mode: use uv directly (not /usr/bin/env which may not find it)
-                let home = NSHomeDirectory()
-                let uvPath = "\(home)/.local/bin/uv"
+                // Dev mode: run the venv script directly (no uv overhead, no hangs)
+                let cwd = FileManager.default.currentDirectoryPath
+                let venvScript = "\(cwd)/cli/.venv/bin/setmac"
 
-                if FileManager.default.fileExists(atPath: uvPath) {
-                    process.executableURL = URL(fileURLWithPath: uvPath)
+                if FileManager.default.fileExists(atPath: venvScript) {
+                    process.executableURL = URL(fileURLWithPath: venvScript)
+                    process.arguments = args
+                    log.info("Using venv script: \(venvScript, privacy: .public)")
                 } else {
-                    process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/uv")
+                    // Fallback: use uv if venv not set up yet
+                    let home = NSHomeDirectory()
+                    let uvPath = "\(home)/.local/bin/uv"
+                    if FileManager.default.fileExists(atPath: uvPath) {
+                        process.executableURL = URL(fileURLWithPath: uvPath)
+                    } else {
+                        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/uv")
+                    }
+                    process.arguments = ["run", "--frozen", "--project", "cli", "setmac"] + args
+                    log.info("Venv not found, falling back to uv at \(process.executableURL?.path ?? "nil", privacy: .public)")
                 }
-                process.arguments = ["run", "--project", "cli", "setmac"] + args
-                process.currentDirectoryURL = URL(
-                    fileURLWithPath: FileManager.default.currentDirectoryPath
-                )
-                log.info("Using uv at \(process.executableURL?.path ?? "nil", privacy: .public), cwd: \(process.currentDirectoryURL?.path ?? "nil", privacy: .public)")
+                process.currentDirectoryURL = URL(fileURLWithPath: cwd)
             }
-            log.info("Running: \(process.executableURL?.path ?? "nil", privacy: .public) \(args.joined(separator: " "), privacy: .public)")
+            let fullCmd = ([process.executableURL?.lastPathComponent ?? "?"] + (process.arguments ?? [])).joined(separator: " ")
+            log.info("Running: \(fullCmd, privacy: .public)")
 
             // Rich PATH for subprocess tools
             var env = ProcessInfo.processInfo.environment
@@ -81,13 +86,13 @@ actor CLIBridge {
             process.standardError = stderrPipe
             process.standardInput = FileHandle.nullDevice
 
-            let buffer = PipeBuffer()
+            let stdoutBuffer = PipeBuffer()
             let stderrBuffer = PipeBuffer()
 
             stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
                 let chunk = handle.availableData
                 if !chunk.isEmpty {
-                    buffer.append(chunk)
+                    stdoutBuffer.append(chunk)
                 }
             }
 
@@ -99,19 +104,20 @@ actor CLIBridge {
             }
 
             process.terminationHandler = { proc in
+                // Stop handlers FIRST, then close write ends to unblock any reads
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
                 stderrPipe.fileHandleForReading.readabilityHandler = nil
+                try? stdoutPipe.fileHandleForWriting.close()
+                try? stderrPipe.fileHandleForWriting.close()
 
-                let remaining = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                let allData = buffer.finalize(remaining)
+                let allData = stdoutBuffer.finalize()
+                let stderrData = stderrBuffer.finalize()
 
-                let stderrRemaining = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                let stderrData = stderrBuffer.finalize(stderrRemaining)
                 if let stderrStr = String(data: stderrData, encoding: .utf8), !stderrStr.isEmpty {
-                    log.error("CLI stderr: \(stderrStr, privacy: .public)")
+                    log.error("CLI stderr:\n\(stderrStr, privacy: .public)")
                 }
 
-                log.info("CLI exited with code \(proc.terminationStatus), received \(allData.count) bytes")
+                log.info("CLI exited with code \(proc.terminationStatus), received \(allData.count) stdout bytes, \(stderrData.count) stderr bytes")
 
                 var parsed = 0
                 if let output = String(data: allData, encoding: .utf8) {
@@ -133,11 +139,14 @@ actor CLIBridge {
                 log.info("Parsed \(parsed) messages")
 
                 if proc.terminationStatus != 0 {
-                    let stderrMsg = String(data: stderrData, encoding: .utf8) ?? "CLI exited with code \(proc.terminationStatus)"
+                    let stderrStr = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let errorMsg = stderrStr.isEmpty
+                        ? "CLI process exited with code \(proc.terminationStatus)"
+                        : stderrStr
                     continuation.yield(CLIMessage(
                         type: "error",
                         tool: nil,
-                        message: stderrMsg.trimmingCharacters(in: .whitespacesAndNewlines),
+                        message: errorMsg,
                         status: "error",
                         version: nil
                     ))
