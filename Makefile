@@ -9,8 +9,12 @@ CLI_DIR      := cli
 # ─── Development ──────────────────────────────────────────────
 
 .PHONY: dev
-dev: ## Build and run in debug mode
-	swift run
+dev: ## Build and run in debug mode with live logs
+	@swift build && \
+	log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug --style compact & \
+	LOG_PID=$$!; \
+	.build/debug/$(APP_NAME); \
+	kill $$LOG_PID 2>/dev/null
 
 .PHONY: build
 build: ## Build debug binary
