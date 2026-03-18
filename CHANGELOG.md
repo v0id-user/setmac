@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.1.1 (2026-03-18)
+
+### Bug Fixes
+
+- Keep Homebrew installer running as user
+  ([`101298e`](https://github.com/v0id-user/setmac/commit/101298e735dbd33f1b128d06a581ff2060a74986))
+
+### Documentation
+
+- Clarify non-root Homebrew auth flow
+  ([`d5898f5`](https://github.com/v0id-user/setmac/commit/d5898f5634a884157e3cabd363316521446b329f))
+
+
 ## v1.1.0 (2026-03-18)
 
 ### Documentation
