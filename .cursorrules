@@ -18,6 +18,11 @@ Types: feat, fix, refactor, chore, docs, style, test, ci. Use `feat!:` or `fix!:
 
 **Split commits**: One logical change per commit. Group related edits (e.g. all release pipeline files in one feat, all doc updates in one docs).
 
+## Release Policy
+- **Default channel**: canary or beta (prerelease-first). Push to `canary` or `beta` for automatic prereleases.
+- **Stable**: Only when user explicitly says "release stable" or "promote to stable". Never trigger stable releases by default.
+- **Version bumping**: Never manually edit version in pyproject.toml, justfile, bundle.sh, or __init__.py. semantic-release owns versioning.
+
 ## Must Follow
 - CLI binary is `setmac-cli` not `setmac` (case-insensitive APFS collision with GUI binary `Setmac`)
 - Use `just` (justfile) not `make` as command runner
