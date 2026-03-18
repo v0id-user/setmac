@@ -93,6 +93,8 @@ Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`. Use `f
 
 ## Release Pipeline
 - **Persistent rule**: Also follow `.cursor/rules/release-policy.mdc` as the project source of truth for release, versioning, signing, and Gatekeeper workaround policy.
+- **Project skill**: Use `.cursor/skills/setmac-release-ops/SKILL.md` when working on releases, packaging hotfixes, signing/notarization, or shipped-build failures.
+- **Playbook**: Use `docs/ai-maintainer-playbook.md` for the shared human + AI release workflow and validation checklist.
 - **Canary**: Push to `canary` → auto-publishes `vX.Y.Z-canary.N`
 - **Beta**: Push to `beta` → auto-publishes `vX.Y.Z-beta.N`
 - **Stable**: Manual only — run "Release Stable" workflow from Actions, default ref `main`. Never auto-release stable.
