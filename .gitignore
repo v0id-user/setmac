@@ -29,3 +29,4 @@ cli/build/
 # IDE
 .vscode/
 .idea/
+cli/*.spec
