@@ -1,0 +1,36 @@
+[project]
+name = "setmac"
+version = "1.0.0"
+description = "macOS developer environment installer"
+requires-python = ">=3.12"
+dependencies = [
+    "python-semantic-release>=10.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["releasetools"]
+
+[tool.semantic_release]
+branch = "main"
+version_toml = ["pyproject.toml:project.version", "cli/pyproject.toml:project.version"]
+build_command = "bash scripts/release-build.sh"
+upload_to_vcs_release = true
+
+[tool.semantic_release.remote]
+token = { env = "GH_TOKEN" }
+
+[tool.semantic_release.changelog]
+default_templates = { changelog_file = "CHANGELOG.md" }
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.branches.beta]
+match = "beta"
+prerelease = true
+prerelease_token = "beta"

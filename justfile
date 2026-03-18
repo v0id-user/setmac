@@ -74,6 +74,16 @@ apply-configs:
 icon:
     bash scripts/generate-icon.sh
 
+# ─── Release ──────────────────────────────────────────────────
+
+# Generate CHANGELOG.md from commits (no version bump)
+changelog:
+    uv run semantic-release changelog
+
+# Dry-run: show next version and changelog without publishing
+release-dry:
+    uv run semantic-release --noop version
+
 # ─── Utilities ────────────────────────────────────────────────
 
 # Format Swift source files
