@@ -1,70 +1,115 @@
 import Foundation
 
+private final class PipeBuffer: @unchecked Sendable {
+    private var data = Data()
+    private let lock = NSLock()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    func finalize(_ remaining: Data) -> Data {
+        lock.lock()
+        if !remaining.isEmpty {
+            data.append(remaining)
+        }
+        let result = data
+        lock.unlock()
+        return result
+    }
+}
+
 actor CLIBridge {
 
     func runCommand(_ args: [String]) -> AsyncStream<CLIMessage> {
         AsyncStream { continuation in
-            Task.detached {
-                do {
-                    let process = Process()
-                    let stdoutPipe = Pipe()
+            let process = Process()
+            let stdoutPipe = Pipe()
 
-                    // Try bundled binary first, fall back to uv run
-                    let bundledCLI = Bundle.main.executableURL?
-                        .deletingLastPathComponent()
-                        .appendingPathComponent("setmac")
+            // Try bundled binary first, fall back to uv run
+            let bundledCLI = Bundle.main.executableURL?
+                .deletingLastPathComponent()
+                .appendingPathComponent("setmac")
 
-                    if let cli = bundledCLI, FileManager.default.fileExists(atPath: cli.path) {
-                        process.executableURL = cli
-                        process.arguments = args
-                    } else {
-                        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                        process.arguments = ["uv", "run", "--project", "cli", "setmac"] + args
-                        process.currentDirectoryURL = URL(
-                            fileURLWithPath: FileManager.default.currentDirectoryPath
-                        )
-                    }
+            if let cli = bundledCLI, FileManager.default.fileExists(atPath: cli.path) {
+                process.executableURL = cli
+                process.arguments = args
+            } else {
+                // Dev mode: use uv directly (not /usr/bin/env which may not find it)
+                let home = NSHomeDirectory()
+                let uvPath = "\(home)/.local/bin/uv"
 
-                    // Ensure brew and common paths are in PATH
-                    var env = ProcessInfo.processInfo.environment
-                    let extraPaths = [
-                        "/opt/homebrew/bin",
-                        "/opt/homebrew/sbin",
-                        "/usr/local/bin",
-                        NSHomeDirectory() + "/.local/bin",
-                        NSHomeDirectory() + "/.bun/bin",
-                        NSHomeDirectory() + "/.cargo/bin",
-                    ]
-                    let currentPath = env["PATH"] ?? "/usr/bin:/bin"
-                    env["PATH"] = extraPaths.joined(separator: ":") + ":" + currentPath
-                    process.environment = env
+                if FileManager.default.fileExists(atPath: uvPath) {
+                    process.executableURL = URL(fileURLWithPath: uvPath)
+                } else {
+                    process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/uv")
+                }
+                process.arguments = ["run", "--project", "cli", "setmac"] + args
+                process.currentDirectoryURL = URL(
+                    fileURLWithPath: FileManager.default.currentDirectoryPath
+                )
+            }
 
-                    process.standardOutput = stdoutPipe
-                    process.standardError = FileHandle.nullDevice
-                    process.standardInput = FileHandle.nullDevice
+            // Rich PATH for subprocess tools
+            var env = ProcessInfo.processInfo.environment
+            let home = NSHomeDirectory()
+            let extraPaths = [
+                "/opt/homebrew/bin",
+                "/opt/homebrew/sbin",
+                "/usr/local/bin",
+                "\(home)/.local/bin",
+                "\(home)/.bun/bin",
+                "\(home)/.cargo/bin",
+            ]
+            let currentPath = env["PATH"] ?? "/usr/bin:/bin"
+            env["PATH"] = extraPaths.joined(separator: ":") + ":" + currentPath
+            process.environment = env
 
-                    try process.run()
+            process.standardOutput = stdoutPipe
+            process.standardError = FileHandle.nullDevice
+            process.standardInput = FileHandle.nullDevice
 
-                    // Read stdout line-by-line, parse JSON
-                    let handle = stdoutPipe.fileHandleForReading
-                    for try await line in handle.bytes.lines {
-                        guard !line.isEmpty else { continue }
-                        guard let data = line.data(using: .utf8),
-                              let msg = try? JSONDecoder().decode(CLIMessage.self, from: data)
+            let buffer = PipeBuffer()
+
+            stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+                let chunk = handle.availableData
+                if !chunk.isEmpty {
+                    buffer.append(chunk)
+                }
+            }
+
+            process.terminationHandler = { _ in
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+
+                let remaining = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                let allData = buffer.finalize(remaining)
+
+                if let output = String(data: allData, encoding: .utf8) {
+                    let decoder = JSONDecoder()
+                    for line in output.components(separatedBy: "\n") {
+                        guard !line.isEmpty,
+                              let lineData = line.data(using: .utf8),
+                              let msg = try? decoder.decode(CLIMessage.self, from: lineData)
                         else { continue }
                         continuation.yield(msg)
                     }
-
-                    process.waitUntilExit()
-                } catch {
-                    continuation.yield(CLIMessage(
-                        type: "error",
-                        tool: nil,
-                        message: "CLI bridge error: \(error.localizedDescription)",
-                        status: "error",
-                        version: nil
-                    ))
                 }
+
+                continuation.finish()
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.yield(CLIMessage(
+                    type: "error",
+                    tool: nil,
+                    message: "Failed to launch CLI: \(error.localizedDescription)",
+                    status: "error",
+                    version: nil
+                ))
                 continuation.finish()
             }
         }
