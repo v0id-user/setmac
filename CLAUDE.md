@@ -64,7 +64,7 @@ CLI stdout emits one JSON object per line:
 ```
 Thread-safe via `threading.Lock()` in `output.py`.
 
-- **auth_required**: Tool needs admin; app shows password sheet, then writes password to stdin.
+- **auth_required**: Tool needs admin; app shows password sheet, then writes the password to stdin so the CLI can prime `sudo` without running the installer as root.
 - **config_status**: Emitted by `configs list` for bundled/system/missing status.
 
 ### CLIBridge.swift

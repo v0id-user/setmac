@@ -56,7 +56,7 @@ Tools that require admin access (e.g. Homebrew bootstrap) can set `"requires_adm
 1. The CLI emits `auth_required` on the JSON line protocol
 2. The app shows a native password sheet
 3. The user enters their password and submits (or cancels)
-4. The password is sent to the CLI via stdin; the install proceeds with `sudo`
+4. The password is sent to the CLI via stdin, used once with `sudo -S -v`, and the installer continues as the normal user
 
 For terminal usage, the CLI prompts on stderr when stdin is a TTY. Otherwise it fails with a clear message.
 
