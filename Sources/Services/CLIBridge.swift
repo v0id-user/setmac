@@ -67,6 +67,11 @@ private final class StreamingLineParser: @unchecked Sendable {
     }
 }
 
+/// Holds the current process's stdin write handle so we can inject the password on auth_required.
+private final class StdinHandleHolder: @unchecked Sendable {
+    var handle: FileHandle?
+}
+
 /// Thread-safe byte accumulator for stderr (not streamed, read at exit).
 private final class DataBuffer: @unchecked Sendable {
     private var data = Data()
@@ -87,6 +92,13 @@ private final class DataBuffer: @unchecked Sendable {
 }
 
 actor CLIBridge {
+    private let stdinHolder = StdinHandleHolder()
+
+    func providePassword(_ password: String) {
+        guard let handle = stdinHolder.handle else { return }
+        let data = (password + "\n").data(using: .utf8) ?? Data()
+        handle.write(data)
+    }
 
     func runCommand(_ args: [String]) -> AsyncStream<CLIMessage> {
         AsyncStream { continuation in
@@ -130,6 +142,8 @@ actor CLIBridge {
             let fullCmd = ([process.executableURL?.lastPathComponent ?? "?"] + (process.arguments ?? [])).joined(separator: " ")
             log.info("Running: \(fullCmd, privacy: .public)")
 
+            let holder = stdinHolder
+
             // Rich PATH for subprocess tools
             var env = ProcessInfo.processInfo.environment
             let home = NSHomeDirectory()
@@ -149,9 +163,11 @@ actor CLIBridge {
             }
             process.environment = env
 
+            let stdinPipe = Pipe()
             process.standardOutput = stdoutPipe
             process.standardError = stderrPipe
-            process.standardInput = FileHandle.nullDevice
+            process.standardInput = stdinPipe
+            holder.handle = stdinPipe.fileHandleForWriting
 
             // Stream stdout: parse JSON lines and yield to UI as they arrive
             let parser = StreamingLineParser(continuation: continuation)
@@ -190,6 +206,8 @@ actor CLIBridge {
 
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
                 stderrPipe.fileHandleForReading.readabilityHandler = nil
+                holder.handle = nil
+                try? stdinPipe.fileHandleForWriting.close()
                 try? stdoutPipe.fileHandleForWriting.close()
                 try? stderrPipe.fileHandleForWriting.close()
 
@@ -213,7 +231,9 @@ actor CLIBridge {
                         tool: nil,
                         message: errorMsg,
                         status: "error",
-                        version: nil
+                        version: nil,
+                        source: nil,
+                        target: nil
                     ))
                 }
 
@@ -230,7 +250,9 @@ actor CLIBridge {
                     tool: nil,
                     message: "Failed to launch CLI: \(error.localizedDescription)",
                     status: "error",
-                    version: nil
+                    version: nil,
+                    source: nil,
+                    target: nil
                 ))
                 continuation.finish()
                 return

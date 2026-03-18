@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from setmac.output import emit_complete, emit_error, emit_log, emit_progress
+from setmac.output import emit_complete, emit_config_status, emit_error, emit_log, emit_progress
 from setmac.registry import Registry
 
 
@@ -136,4 +136,5 @@ def list_configs():
         system = source.exists()
 
         status = "bundled+system" if bundled and system else "bundled" if bundled else "system" if system else "missing"
+        emit_config_status(tool.id, config.source, config.target, status)
         emit_log(f"[{status}] {config.source} -> {config.target}", tool=tool.id)

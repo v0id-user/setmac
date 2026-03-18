@@ -19,7 +19,7 @@ enum SidebarItem: Hashable, Identifiable {
         switch self {
         case .overview: "Overview"
         case .category(let cat): cat.displayName
-        case .configs: "Configs"
+        case .configs: "Dotfiles"
         case .about: "About"
         }
     }

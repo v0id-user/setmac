@@ -35,7 +35,8 @@
       },
       "install": {
         "method": "script",
-        "url": "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+        "url": "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh",
+        "requires_admin": true
       }
     },
 

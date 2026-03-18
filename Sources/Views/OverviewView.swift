@@ -33,11 +33,13 @@ struct OverviewView: View {
                     Task { await refresh() }
                 }
                 .disabled(state.isRunning)
+                .help("Refresh tool installation status")
 
                 Button("Install All", systemImage: "arrow.down.circle") {
                     Task { await installAll() }
                 }
                 .disabled(isInstalling || state.installedCount == state.totalTools)
+                .help("Install all tools from the manifest")
             }
         }
         .navigationTitle("Overview")
@@ -106,10 +108,25 @@ struct OverviewView: View {
         isInstalling = true
         state.isRunning = true
         for await msg in await bridge.installAll() {
-            state.applyMessage(msg)
+            await processMessage(msg)
         }
         state.isRunning = false
         isInstalling = false
+    }
+
+    private func processMessage(_ msg: CLIMessage) async {
+        if msg.type == "auth_required" {
+            let password = await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
+                state.pendingAuthRequest = AuthRequest(
+                    tool: msg.tool ?? "",
+                    message: msg.message ?? "Admin password required for installation"
+                )
+                state.pendingAuthContinuation = { cont.resume(returning: $0) }
+            }
+            await bridge.providePassword(password)
+        } else {
+            state.applyMessage(msg)
+        }
     }
 }
 

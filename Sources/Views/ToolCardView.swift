@@ -59,30 +59,36 @@ struct ToolCardView: View {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
                 .font(.title3)
+                .help("Installed")
 
         case .notInstalled:
             Button("Install") {
                 onInstall()
             }
             .controlSize(.small)
+            .help("Install this tool")
 
         case .installing, .checking:
             ProgressView()
                 .controlSize(.small)
+                .help("Installation in progress")
 
         case .error:
             HStack(spacing: 6) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
+                    .help("Installation failed")
                 Button("Retry") {
                     onInstall()
                 }
                 .controlSize(.small)
+                .help("Retry installation")
             }
 
         case .unknown:
             Image(systemName: "questionmark.circle")
                 .foregroundStyle(.secondary)
+                .help("Status unknown — refresh to check")
         }
     }
 }

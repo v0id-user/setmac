@@ -21,6 +21,7 @@ class InstallSpec:
     target: str | None = None
     script: str | None = None
     url: str | None = None
+    requires_admin: bool = False
 
 
 @dataclass
@@ -67,6 +68,7 @@ def _parse_tool(data: dict) -> Tool:
             target=install_data.get("target"),
             script=install_data.get("script"),
             url=install_data.get("url"),
+            requires_admin=install_data.get("requires_admin", False),
         ),
         configs=[
             ConfigSpec(

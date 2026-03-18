@@ -40,6 +40,16 @@ struct ContentView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .sheet(item: Binding(
+            get: { state.pendingAuthRequest },
+            set: { state.pendingAuthRequest = $0 }
+        )) { request in
+            AuthPasswordSheetView(
+                request: request,
+                onSubmit: { state.fulfillAuthRequest($0) },
+                onCancel: { state.fulfillAuthRequest("") }
+            )
+        }
     }
 
     private func refreshStatuses() async {
