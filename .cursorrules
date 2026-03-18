@@ -4,10 +4,19 @@
 macOS dev environment installer. SwiftUI app + Python CLI, shared tools.json manifest.
 
 ## Commit Convention
+Use [Conventional Commits](https://www.conventionalcommits.org/) for versioning and changelogs:
 ```
-commit(type): message
+feat: add new feature
+fix: resolve bug
+chore: maintenance
+docs: documentation
+style: formatting
+test: tests
+ci: CI changes
 ```
-Types: feat, fix, refactor, chore, docs, style, test, ci
+Types: feat, fix, refactor, chore, docs, style, test, ci. Use `feat!:` or `fix!:` for breaking changes.
+
+**Split commits**: One logical change per commit. Group related edits (e.g. all release pipeline files in one feat, all doc updates in one docs).
 
 ## Must Follow
 - CLI binary is `setmac-cli` not `setmac` (case-insensitive APFS collision with GUI binary `Setmac`)

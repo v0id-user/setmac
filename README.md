@@ -20,7 +20,7 @@ setmac/
 │   ├── tools.json    # Single source of truth — all tools defined here
 │   └── configs/      # Captured dotfiles
 ├── scripts/          # Build, bundle, DMG scripts
-├── Makefile          # All commands
+├── justfile          # All commands
 └── Package.swift     # SPM config
 ```
 
@@ -30,7 +30,7 @@ Both the GUI and CLI read from the same `tools.json` manifest. The SwiftUI app s
 
 ```bash
 # Run the GUI
-make dev
+just dev
 
 # Or use the CLI directly
 cd cli && uv sync
@@ -60,18 +60,25 @@ Every tool is defined in `Resources/tools.json` with:
 
 The manifest is designed to be extensible. Future plan: host your own `tools.json` and share setups.
 
-## Makefile targets
+## Commands (just)
 
 ```
-make dev             # Build and run in debug mode
-make build           # Build debug binary
-make status          # Check install status of all tools
-make capture-configs # Capture current system configs
-make apply-configs   # Apply bundled configs to system
-make bundle          # Create .app bundle with embedded CLI
-make dmg             # Create DMG for distribution
-make help            # Show all targets
+just dev             # Build and run in debug mode
+just build           # Build debug binary
+just status          # Check install status of all tools
+just capture-configs # Capture current system configs
+just apply-configs   # Apply bundled configs to system
+just bundle          # Create .app bundle with embedded CLI
+just dmg             # Create DMG for distribution
+just                 # List all recipes
 ```
+
+## Releases
+
+Releases are automated with [python-semantic-release](https://python-semantic-release.readthedocs.io/). Use Conventional Commits (`feat:`, `fix:`, etc.) on `main`; pushes trigger version bumps and GitHub Releases.
+
+- **Stable**: Push `feat`/`fix` commits to `main` — CI builds DMG + standalone CLI and publishes.
+- **Beta**: Run the Release workflow manually, check "Create beta prerelease" — publishes `vX.Y.Z-beta.N` with DMG and CLI.
 
 ## Tools included
 

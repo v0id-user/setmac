@@ -81,11 +81,15 @@ Everything is data-driven from `tools.json`. No tool names hardcoded in Swift or
 
 ## Git Commit Convention
 
+Use [Conventional Commits](https://www.conventionalcommits.org/) for semantic-release:
+
 ```
-commit(type): message
+feat: add new feature
+fix: resolve bug
+chore: maintenance
 ```
 
-Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`
+Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`. Use `feat!:` or `fix!:` for breaking changes.
 
 ## Development Rules
 
