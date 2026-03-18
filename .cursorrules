@@ -1,0 +1,31 @@
+# setmac — AI Rules
+
+## What This Project Is
+macOS dev environment installer. SwiftUI app + Python CLI, shared tools.json manifest.
+
+## Commit Convention
+```
+commit(type): message
+```
+Types: feat, fix, refactor, chore, docs, style, test, ci
+
+## Must Follow
+- CLI binary is `setmac-cli` not `setmac` (case-insensitive APFS collision with GUI binary `Setmac`)
+- No Xcode IDE. SPM + CLI only (`swift build`, `swift run`)
+- No hardcoded tool names — everything from `tools.json`
+- `Window` not `WindowGroup` (single-window app)
+- macOS 26+ (Tahoe), Liquid Glass UI
+- Python CLI managed with `uv`, entry point `setmac`
+- JSON-line protocol on stdout, thread-safe with `threading.Lock()`
+- `os.Logger` subsystem: `com.v0id.setmac`
+- CLIBridge uses `readabilityHandler` + `terminationHandler` pattern
+- Rich PATH in CLIBridge env (homebrew, cargo, bun, etc.)
+- Dev mode: `uv run --project cli setmac`; Bundle mode: `Contents/MacOS/setmac-cli`
+
+## Don't
+- Don't use `/usr/bin/env` to find uv (GUI apps have minimal PATH)
+- Don't use `bytes.lines` async iteration on pipes (blocks in some contexts)
+- Don't name anything `setmac` in the build output dir (collides with `Setmac`)
+- Don't suggest Xcode for anything
+- Don't hardcode tool lists in Swift or Python
+- Don't use `WindowGroup` (causes duplicate windows)
