@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v1.1.0 (2026-03-18)
+
+### Documentation
+
+- Add AI maintainer playbook
+  ([`2726731`](https://github.com/v0id-user/setmac/commit/2726731fd18eb300e98d7b6415c95586ce7a3cac))
+
+- Add project skill for release operations
+  ([`53656a4`](https://github.com/v0id-user/setmac/commit/53656a4d1ca50c9476aba822e966dd1b6a339762))
+
+- Document admin prompt and config visibility UX
+  ([`b6fd54a`](https://github.com/v0id-user/setmac/commit/b6fd54a9109a2dabdecb32a0bb3d75a091a829ee))
+
+- Persist release policy for AI agents
+  ([`5bd984d`](https://github.com/v0id-user/setmac/commit/5bd984d4ced2f3d2a59ed3b2453709376f0083ed))
+
+### Features
+
+- Add admin password prompt, config visibility, and tooltips
+  ([`f26ce5e`](https://github.com/v0id-user/setmac/commit/f26ce5e5c6af5ee1dd9a74ab336cda41dee27cd5))
+
+
 ## v1.0.2 (2026-03-18)
 
 ### Bug Fixes
