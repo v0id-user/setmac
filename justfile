@@ -84,6 +84,26 @@ changelog:
 release-dry:
     uv run semantic-release --noop version
 
+# Dry-run canary prerelease (run from canary branch)
+release-dry-canary:
+    uv run semantic-release --noop version --as-prerelease --prerelease-token canary
+
+# Dry-run beta prerelease (run from beta branch)
+release-dry-beta:
+    uv run semantic-release --noop version --as-prerelease --prerelease-token beta
+
+# Smoke test: build artifacts with test version (no publish)
+release-build-test:
+    NEW_VERSION="9.99.99-test" bash scripts/release-build.sh
+    @echo "Artifacts: dist/Setmac.dmg, cli/dist/setmac-cli"
+    file dist/Setmac.dmg cli/dist/setmac-cli
+
+# Verify release signatures and CLI startup
+release-verify:
+    codesign --verify --deep --strict --verbose=2 dist/Setmac.app
+    codesign --verify --verbose=2 dist/Setmac.dmg
+    cli/dist/setmac-cli --help
+
 # ─── Utilities ────────────────────────────────────────────────
 
 # Format Swift source files
