@@ -91,6 +91,13 @@ chore: maintenance
 
 Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`. Use `feat!:` or `fix!:` for breaking changes.
 
+## Release Pipeline
+- **Canary**: Push to `canary` → auto-publishes `vX.Y.Z-canary.N`
+- **Beta**: Push to `beta` → auto-publishes `vX.Y.Z-beta.N`
+- **Stable**: Manual only — run "Release Stable" workflow from Actions, default ref `main`. Never auto-release stable.
+- **Versioning**: semantic-release is source of truth. Do not manually bump versions.
+- **Branch setup**: Create `canary` and `beta` from `main` if missing: `git checkout -b canary main && git push -u origin canary` (same for beta).
+
 ## Development Rules
 
 - No Xcode IDE — use CLI (`swift build`, `swift run`) and VS Code

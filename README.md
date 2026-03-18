@@ -75,10 +75,39 @@ just                 # List all recipes
 
 ## Releases
 
-Releases are automated with [python-semantic-release](https://python-semantic-release.readthedocs.io/). Use Conventional Commits (`feat:`, `fix:`, etc.) on `main`; pushes trigger version bumps and GitHub Releases.
+Releases are automated with [python-semantic-release](https://python-semantic-release.readthedocs.io/).
 
-- **Stable**: Push `feat`/`fix` commits to `main` — CI builds DMG + standalone CLI and publishes.
-- **Beta**: Run the Release workflow manually, check "Create beta prerelease" — publishes `vX.Y.Z-beta.N` with DMG and CLI.
+- **Canary**: Push to `canary` to publish `vX.Y.Z-canary.N`
+- **Beta**: Push to `beta` to publish `vX.Y.Z-beta.N`
+- **Stable**: Run the `Release Stable` workflow manually from `main`
+- **Version bumps**: Use Conventional Commits (`feat:`, `fix:`, etc.). semantic-release owns the version number.
+
+### Signing and notarization
+
+Release builds now do the following:
+
+- ad-hoc sign the standalone `setmac-cli`
+- ad-hoc sign `Setmac.app` and the DMG by default
+- automatically switch to Developer ID signing when these GitHub secrets are configured:
+  - `APPLE_SIGNING_IDENTITY`
+  - `APPLE_CERTIFICATE_P12_BASE64`
+  - `APPLE_CERTIFICATE_PASSWORD`
+  - `APPLE_ID`
+  - `APPLE_APP_SPECIFIC_PASSWORD`
+  - `APPLE_TEAM_ID`
+- automatically notarize and staple the DMG when the Apple secrets are present
+
+Ad-hoc signing makes the bundle structurally valid, but it does **not** satisfy Gatekeeper on a downloaded build. Until the Apple signing secrets are configured, users should expect to use the workaround below.
+
+### Gatekeeper workaround
+
+If you open a non-notarized build and macOS reports the app as damaged or blocked, move it to `/Applications` and run:
+
+```bash
+xattr -cr /Applications/Setmac.app
+```
+
+You can also Control-click the app and choose `Open`. This is only a temporary workaround for older unsigned releases; the proper fix is signed and notarized builds.
 
 ## Tools included
 
