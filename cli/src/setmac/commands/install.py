@@ -2,9 +2,9 @@
 
 import click
 
-from rig.installers.base import run_tool
-from rig.output import emit_error, emit_log
-from rig.registry import Registry
+from setmac.installers.base import run_tool
+from setmac.output import emit_error, emit_log
+from setmac.registry import Registry
 
 
 @click.command("install")
@@ -17,7 +17,7 @@ def install_cmd(tool_id, category, check):
 
     if check:
         # Delegate to status
-        from rig.commands.status import status_cmd
+        from setmac.commands.status import status_cmd
         from click.testing import CliRunner
 
         runner = CliRunner()

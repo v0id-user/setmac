@@ -6,8 +6,8 @@ from pathlib import Path
 
 import click
 
-from rig.output import emit_complete, emit_error, emit_log, emit_progress
-from rig.registry import Registry
+from setmac.output import emit_complete, emit_error, emit_log, emit_progress
+from setmac.registry import Registry
 
 
 def _configs_dir() -> Path:
@@ -71,10 +71,10 @@ def apply(dry_run):
     configs_dir = _configs_dir()
 
     if not configs_dir.exists():
-        emit_error("configs", "No configs directory found. Run 'rig configs capture' first.")
+        emit_error("configs", "No configs directory found. Run 'setmac configs capture' first.")
         return
 
-    backup_dir = Path(os.path.expanduser("~/.config/rig-backup"))
+    backup_dir = Path(os.path.expanduser("~/.config/setmac-backup"))
 
     count = 0
     for tool, config in _all_configs(registry):

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="Rig"
-BUNDLE_ID="com.v0id.rig"
+APP_NAME="Setmac"
+BUNDLE_ID="com.v0id.setmac"
 VERSION="1.0.0"
 BUILD_DIR=".build/release"
 DIST_DIR="dist"
@@ -17,8 +17,8 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # Copy CLI binary if it exists
-if [ -f "cli/dist/rig" ]; then
-    cp "cli/dist/rig" "$APP_BUNDLE/Contents/MacOS/rig"
+if [ -f "cli/dist/setmac" ]; then
+    cp "cli/dist/setmac" "$APP_BUNDLE/Contents/MacOS/setmac"
     echo "    Embedded CLI binary"
 fi
 

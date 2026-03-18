@@ -1,5 +1,5 @@
-APP_NAME     := Rig
-BUNDLE_ID    := com.v0id.rig
+APP_NAME     := Setmac
+BUNDLE_ID    := com.v0id.setmac
 VERSION      := 1.0.0
 BUILD_DIR    := .build
 RELEASE_DIR  := dist
@@ -44,7 +44,7 @@ cli-setup: ## Set up Python CLI dev environment
 
 .PHONY: cli-dev
 cli-dev: ## Run CLI in dev mode
-	cd $(CLI_DIR) && uv run rig --help
+	cd $(CLI_DIR) && uv run setmac --help
 
 .PHONY: cli-build
 cli-build: ## Build standalone CLI binary with PyInstaller
@@ -54,15 +54,15 @@ cli-build: ## Build standalone CLI binary with PyInstaller
 
 .PHONY: status
 status: ## Check install status of all tools
-	cd $(CLI_DIR) && uv run rig status
+	cd $(CLI_DIR) && uv run setmac status
 
 .PHONY: capture-configs
 capture-configs: ## Capture current system configs into bundle
-	cd $(CLI_DIR) && uv run rig configs capture
+	cd $(CLI_DIR) && uv run setmac configs capture
 
 .PHONY: apply-configs
 apply-configs: ## Apply bundled configs to system
-	cd $(CLI_DIR) && uv run rig configs apply
+	cd $(CLI_DIR) && uv run setmac configs apply
 
 # ─── Icon ─────────────────────────────────────────────────────
 

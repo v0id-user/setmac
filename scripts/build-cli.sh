@@ -19,12 +19,12 @@ uv sync --group build
 # Build standalone binary
 uv run pyinstaller \
     --onefile \
-    --name rig \
+    --name setmac \
     --clean \
     --noconfirm \
     --strip \
     --distpath dist \
-    src/rig/__main__.py
+    src/setmac/__main__.py
 
 echo "==> CLI binary built at $DIST_DIR/rig"
 echo "    Test with: $DIST_DIR/rig --help"

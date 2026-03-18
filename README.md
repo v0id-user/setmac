@@ -1,4 +1,4 @@
-# Rig
+# setmac
 
 Idempotent macOS setup automator. Reinstall all your dev tools, apps, and configs after a fresh format — one click or one command.
 
@@ -13,7 +13,7 @@ Idempotent macOS setup automator. Reinstall all your dev tools, apps, and config
 ## Architecture
 
 ```
-rig/
+setmac/
 ├── Sources/          # SwiftUI macOS app
 ├── cli/              # Python CLI (uv + click)
 ├── Resources/
@@ -34,10 +34,10 @@ make dev
 
 # Or use the CLI directly
 cd cli && uv sync
-uv run rig status          # Check what's installed
-uv run rig install all     # Install everything
-uv run rig configs capture # Save current dotfiles
-uv run rig configs apply   # Restore dotfiles on fresh Mac
+uv run setmac status          # Check what's installed
+uv run setmac install all     # Install everything
+uv run setmac configs capture # Save current dotfiles
+uv run setmac configs apply   # Restore dotfiles on fresh Mac
 ```
 
 ## Requirements

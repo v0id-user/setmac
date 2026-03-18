@@ -4,9 +4,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import click
 
-from rig.installers.base import check_tool
-from rig.output import emit_status
-from rig.registry import Registry
+from setmac.installers.base import check_tool
+from setmac.output import emit_status
+from setmac.registry import Registry
 
 
 def _check_one(tool):

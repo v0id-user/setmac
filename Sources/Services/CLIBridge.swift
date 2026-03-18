@@ -1,42 +1,25 @@
 import Foundation
 
 actor CLIBridge {
-    private let projectRoot: URL
-
-    init() {
-        // In dev mode, project root is the working directory
-        // In bundle mode, it's relative to the executable
-        if let bundledCLI = Bundle.main.executableURL?
-            .deletingLastPathComponent()
-            .appendingPathComponent("rig"),
-            FileManager.default.fileExists(atPath: bundledCLI.path) {
-            projectRoot = Bundle.main.bundleURL
-                .appendingPathComponent("Contents")
-                .appendingPathComponent("Resources")
-        } else {
-            // Dev mode: assume we're running from project root
-            projectRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        }
-    }
 
     func runCommand(_ args: [String]) -> AsyncStream<CLIMessage> {
         AsyncStream { continuation in
             Task.detached {
                 do {
                     let process = Process()
-                    let pipe = Pipe()
+                    let stdoutPipe = Pipe()
 
                     // Try bundled binary first, fall back to uv run
                     let bundledCLI = Bundle.main.executableURL?
                         .deletingLastPathComponent()
-                        .appendingPathComponent("rig")
+                        .appendingPathComponent("setmac")
 
                     if let cli = bundledCLI, FileManager.default.fileExists(atPath: cli.path) {
                         process.executableURL = cli
                         process.arguments = args
                     } else {
                         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                        process.arguments = ["uv", "run", "--project", "cli", "rig"] + args
+                        process.arguments = ["uv", "run", "--project", "cli", "setmac"] + args
                         process.currentDirectoryURL = URL(
                             fileURLWithPath: FileManager.default.currentDirectoryPath
                         )
@@ -48,36 +31,28 @@ actor CLIBridge {
                         "/opt/homebrew/bin",
                         "/opt/homebrew/sbin",
                         "/usr/local/bin",
+                        NSHomeDirectory() + "/.local/bin",
                         NSHomeDirectory() + "/.bun/bin",
                         NSHomeDirectory() + "/.cargo/bin",
-                        NSHomeDirectory() + "/.local/bin",
                     ]
                     let currentPath = env["PATH"] ?? "/usr/bin:/bin"
                     env["PATH"] = extraPaths.joined(separator: ":") + ":" + currentPath
                     process.environment = env
 
-                    process.standardOutput = pipe
+                    process.standardOutput = stdoutPipe
                     process.standardError = FileHandle.nullDevice
+                    process.standardInput = FileHandle.nullDevice
 
                     try process.run()
 
-                    let handle = pipe.fileHandleForReading
-                    var buffer = Data()
-
-                    while true {
-                        let chunk = handle.availableData
-                        if chunk.isEmpty { break }
-                        buffer.append(chunk)
-
-                        // Process complete lines
-                        while let newlineRange = buffer.range(of: Data("\n".utf8)) {
-                            let lineData = buffer.subdata(in: buffer.startIndex..<newlineRange.lowerBound)
-                            buffer.removeSubrange(buffer.startIndex...newlineRange.lowerBound)
-
-                            if let msg = try? JSONDecoder().decode(CLIMessage.self, from: lineData) {
-                                continuation.yield(msg)
-                            }
-                        }
+                    // Read stdout line-by-line, parse JSON
+                    let handle = stdoutPipe.fileHandleForReading
+                    for try await line in handle.bytes.lines {
+                        guard !line.isEmpty else { continue }
+                        guard let data = line.data(using: .utf8),
+                              let msg = try? JSONDecoder().decode(CLIMessage.self, from: data)
+                        else { continue }
+                        continuation.yield(msg)
                     }
 
                     process.waitUntilExit()

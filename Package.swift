@@ -3,11 +3,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "Rig",
+    name: "Setmac",
     platforms: [.macOS(.v26)],
     targets: [
         .executableTarget(
-            name: "Rig",
+            name: "Setmac",
             path: "Sources",
             resources: [
                 .process("../Resources/Assets.xcassets"),

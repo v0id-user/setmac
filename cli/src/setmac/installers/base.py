@@ -6,8 +6,8 @@ import os
 import subprocess
 import traceback
 
-from rig.output import emit_complete, emit_error, emit_log, emit_progress, emit_status
-from rig.registry import Tool
+from setmac.output import emit_complete, emit_error, emit_log, emit_progress, emit_status
+from setmac.registry import Tool
 
 
 # ─── Shell environment ────────────────────────────────────────
@@ -142,7 +142,7 @@ def install_tool(tool: Tool) -> bool:
         elif method in ("script", "custom"):
             return _script_install(tool)
         elif method == "config":
-            emit_log("Config-only tool — use 'rig configs apply'", tool=tool.id)
+            emit_log("Config-only tool — use 'setmac configs apply'", tool=tool.id)
             return True
         else:
             emit_error(tool.id, f"Unknown install method: {method}")

@@ -1,11 +1,11 @@
 import SwiftUI
 
 @main
-struct DevToolApp: App {
+struct SetmacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        WindowGroup {
+        Window("setmac", id: "main") {
             ContentView()
         }
         .windowStyle(.automatic)

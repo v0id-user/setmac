@@ -39,7 +39,7 @@ struct SidebarView: View {
                 sidebarRow(.about)
             }
         }
-        .navigationTitle("Rig")
+        .navigationTitle("setmac")
     }
 
     @ViewBuilder

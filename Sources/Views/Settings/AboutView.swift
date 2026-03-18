@@ -8,7 +8,7 @@ struct AboutView: View {
                     Image(systemName: "wrench.and.screwdriver")
                         .font(.system(size: 48))
                         .foregroundStyle(.tint)
-                    Text("Rig")
+                    Text("setmac")
                         .font(.title)
                         .fontWeight(.bold)
                     Text("macOS Setup Automator")
