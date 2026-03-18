@@ -14,7 +14,7 @@ struct AboutView: View {
                     Text("macOS Setup Automator")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text("Version 1.0.0")
+                    Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
