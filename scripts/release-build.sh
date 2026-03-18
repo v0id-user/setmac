@@ -22,6 +22,9 @@ export VERSION="$VERSION"
 swift build -c release
 bash scripts/build-cli.sh
 bash scripts/bundle.sh
+bash scripts/sign-release.sh
 bash scripts/dmg.sh
+SIGN_APP=0 bash scripts/sign-release.sh
+bash scripts/notarize-release.sh
 
 echo "==> Release build complete: dist/Setmac.dmg, cli/dist/setmac-cli"
