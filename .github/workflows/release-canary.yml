@@ -23,11 +23,15 @@ jobs:
         run: uv python install 3.12
 
       - name: Import Apple signing certificate
-        if: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
         env:
           APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
+          if [ -z "$APPLE_CERTIFICATE_P12_BASE64" ] || [ -z "$APPLE_CERTIFICATE_PASSWORD" ]; then
+            echo "Skipping certificate import: Apple signing secrets are not configured"
+            exit 0
+          fi
+
           CERT_PATH="$RUNNER_TEMP/setmac-signing.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/setmac-signing.keychain-db"
           KEYCHAIN_PASSWORD="setmac-temporary-keychain"
