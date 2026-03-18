@@ -12,6 +12,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(selection: $selectedItem, state: state)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
         } detail: {
             if let item = selectedItem {
                 DetailView(item: item, state: state, bridge: bridge)
