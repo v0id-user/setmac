@@ -60,15 +60,19 @@ The bundled CLI binary is named `setmac-cli` (NOT `setmac`) to avoid case-insens
 ### JSON-line protocol
 CLI stdout emits one JSON object per line:
 ```json
-{"type": "status|progress|log|error|complete", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
+{"type": "status|progress|log|error|complete|auth_required|config_status", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
 ```
 Thread-safe via `threading.Lock()` in `output.py`.
+
+- **auth_required**: Tool needs admin; app shows password sheet, then writes password to stdin.
+- **config_status**: Emitted by `configs list` for bundled/system/missing status.
 
 ### CLIBridge.swift
 - Dev mode: runs `cli/.venv/bin/setmac` directly (bypasses `uv` to avoid GUI hangs). Falls back to `uv run --frozen` if venv not set up.
 - Bundle mode: runs embedded `Contents/MacOS/setmac-cli <args>`
 - Uses `readabilityHandler` + `terminationHandler` (not async iteration)
 - Sets rich PATH for subprocess tools (homebrew, cargo, bun, etc.)
+- Uses a Pipe for stdin (not null) so `providePassword` can inject admin when auth_required is received.
 
 ### Logging
 Uses `os.Logger` with subsystem `com.v0id.setmac`. Categories: CLIBridge, ManifestLoader, ContentView, InstallState, CategoryDetail, ConfigsView. View with:

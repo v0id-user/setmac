@@ -9,6 +9,8 @@ Idempotent macOS setup automator. Reinstall all your dev tools, apps, and config
 - Captures and restores dotfiles/configs (zshrc, tmux, neovim, ghostty, etc.)
 - Native SwiftUI app with Liquid Glass UI on macOS Tahoe
 - Python CLI backend that does the actual work
+- **Admin prompts**: When installing tools that need sudo (e.g. Homebrew), the app shows a native password sheet instead of failing silently
+- **Config visibility**: The Dotfiles screen shows real status (bundled, on disk, installed, missing) for each config
 
 ## Architecture
 
@@ -46,6 +48,17 @@ uv run setmac configs apply   # Restore dotfiles on fresh Mac
 - Xcode (for Swift SDK, not the IDE)
 - [uv](https://docs.astral.sh/uv/) — Python package manager
 - Python 3.12+
+
+## Admin password flow
+
+Tools that require admin access (e.g. Homebrew bootstrap) can set `"requires_admin": true` in their install spec. When the app runs such an install:
+
+1. The CLI emits `auth_required` on the JSON line protocol
+2. The app shows a native password sheet
+3. The user enters their password and submits (or cancels)
+4. The password is sent to the CLI via stdin; the install proceeds with `sudo`
+
+For terminal usage, the CLI prompts on stderr when stdin is a TTY. Otherwise it fails with a clear message.
 
 ## tools.json
 

@@ -22,6 +22,12 @@ This doc is the shared human + AI reference for release work, packaging hotfixes
 - Standalone CLI: `cli/dist/setmac-cli`
 - Release builds run through `scripts/release-build.sh`
 
+## Admin and config UX
+
+- **Admin prompt**: Tools with `requires_admin: true` in tools.json emit `auth_required`. The app shows a native password sheet and forwards the password via stdin. CLI runs the install with `sudo -S`.
+- **Config visibility**: The Dotfiles screen shows real status (bundled, on disk, installed, missing) for each config. `configs list` emits `config_status` JSON lines.
+- **Navigation**: Sidebar "Dotfiles" is the config management screen; "Configs" category under Tools lists config-only tools.
+
 ## Local validation
 
 Run these before pushing release-related changes:
