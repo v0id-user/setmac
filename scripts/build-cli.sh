@@ -24,7 +24,8 @@ uv run pyinstaller \
     --noconfirm \
     --strip \
     --distpath dist \
+    --add-data "../Resources/tools.json:." \
     src/setmac/__main__.py
 
-echo "==> CLI binary built at $DIST_DIR/rig"
-echo "    Test with: $DIST_DIR/rig --help"
+echo "==> CLI binary built at $DIST_DIR/setmac"
+echo "    Test with: $DIST_DIR/setmac --help"

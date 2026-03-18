@@ -27,6 +27,18 @@ if [ -f "Resources/AppIcon.icns" ]; then
     cp "Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
+# Copy tools.json manifest
+if [ -f "Resources/tools.json" ]; then
+    cp "Resources/tools.json" "$APP_BUNDLE/Contents/Resources/tools.json"
+    echo "    Embedded tools.json"
+fi
+
+# Copy bundled configs if they exist
+if [ -d "Resources/configs" ]; then
+    cp -R "Resources/configs" "$APP_BUNDLE/Contents/Resources/configs"
+    echo "    Embedded configs"
+fi
+
 # Generate Info.plist
 cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>

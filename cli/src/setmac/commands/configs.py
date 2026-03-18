@@ -1,6 +1,7 @@
 """Config capture and apply commands."""
 
 import os
+import sys
 import shutil
 from pathlib import Path
 
@@ -11,7 +12,11 @@ from setmac.registry import Registry
 
 
 def _configs_dir() -> Path:
-    """Get the configs directory in the project."""
+    """Get the configs directory in the project or app bundle."""
+    if getattr(sys, "frozen", False):
+        # Running inside .app bundle: Contents/MacOS/setmac -> Contents/Resources/configs
+        return Path(os.path.dirname(sys.executable)).parent / "Resources" / "configs"
+    # Dev mode: relative to source tree
     return Path(__file__).parent.parent.parent.parent.parent / "Resources" / "configs"
 
 

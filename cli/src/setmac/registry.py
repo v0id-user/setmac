@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -83,8 +84,12 @@ class Registry:
 
     def __init__(self, manifest_path: Path | None = None):
         if manifest_path is None:
-            # Look relative to this file -> cli/src/devtool -> up to project root
-            manifest_path = Path(__file__).parent.parent.parent.parent / "Resources" / "tools.json"
+            if getattr(sys, "frozen", False):
+                # Running as PyInstaller bundle
+                manifest_path = Path(sys._MEIPASS) / "tools.json"
+            else:
+                # Dev mode: relative to source tree
+                manifest_path = Path(__file__).parent.parent.parent.parent / "Resources" / "tools.json"
 
         with open(manifest_path) as f:
             data = json.load(f)
