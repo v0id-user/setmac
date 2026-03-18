@@ -17,8 +17,8 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # Copy CLI binary if it exists
-if [ -f "cli/dist/setmac" ]; then
-    cp "cli/dist/setmac" "$APP_BUNDLE/Contents/MacOS/setmac"
+if [ -f "cli/dist/setmac-cli" ]; then
+    cp "cli/dist/setmac-cli" "$APP_BUNDLE/Contents/MacOS/setmac-cli"
     echo "    Embedded CLI binary"
 fi
 

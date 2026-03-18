@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let log = Logger(subsystem: "com.v0id.setmac", category: "CLIBridge")
 
 private final class PipeBuffer: @unchecked Sendable {
     private var data = Data()
@@ -29,11 +32,13 @@ actor CLIBridge {
             let stdoutPipe = Pipe()
 
             // Try bundled binary first, fall back to uv run
+            // Named "setmac-cli" to avoid case-insensitive collision with GUI binary "Setmac"
             let bundledCLI = Bundle.main.executableURL?
                 .deletingLastPathComponent()
-                .appendingPathComponent("setmac")
+                .appendingPathComponent("setmac-cli")
 
             if let cli = bundledCLI, FileManager.default.fileExists(atPath: cli.path) {
+                log.info("Using bundled CLI: \(cli.path)")
                 process.executableURL = cli
                 process.arguments = args
             } else {
@@ -50,7 +55,9 @@ actor CLIBridge {
                 process.currentDirectoryURL = URL(
                     fileURLWithPath: FileManager.default.currentDirectoryPath
                 )
+                log.info("Using uv at \(process.executableURL?.path ?? "nil"), cwd: \(process.currentDirectoryURL?.path ?? "nil")")
             }
+            log.info("Running: \(process.executableURL?.path ?? "nil") \(args.joined(separator: " "))")
 
             // Rich PATH for subprocess tools
             var env = ProcessInfo.processInfo.environment
@@ -80,22 +87,32 @@ actor CLIBridge {
                 }
             }
 
-            process.terminationHandler = { _ in
+            process.terminationHandler = { proc in
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
 
                 let remaining = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
                 let allData = buffer.finalize(remaining)
 
+                log.info("CLI exited with code \(proc.terminationStatus), received \(allData.count) bytes")
+
+                var parsed = 0
                 if let output = String(data: allData, encoding: .utf8) {
                     let decoder = JSONDecoder()
                     for line in output.components(separatedBy: "\n") {
                         guard !line.isEmpty,
                               let lineData = line.data(using: .utf8),
                               let msg = try? decoder.decode(CLIMessage.self, from: lineData)
-                        else { continue }
+                        else {
+                            if !line.isEmpty {
+                                log.warning("Unparseable line: \(line)")
+                            }
+                            continue
+                        }
+                        parsed += 1
                         continuation.yield(msg)
                     }
                 }
+                log.info("Parsed \(parsed) messages")
 
                 continuation.finish()
             }
@@ -103,6 +120,7 @@ actor CLIBridge {
             do {
                 try process.run()
             } catch {
+                log.error("Failed to launch CLI: \(error.localizedDescription)")
                 continuation.yield(CLIMessage(
                     type: "error",
                     tool: nil,

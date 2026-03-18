@@ -16,10 +16,10 @@ cd "$CLI_DIR"
 # Install with dev deps (includes pyinstaller)
 uv sync --group build
 
-# Build standalone binary
+# Build standalone binary (named setmac-cli to avoid case-insensitive collision with GUI binary)
 uv run pyinstaller \
     --onefile \
-    --name setmac \
+    --name setmac-cli \
     --clean \
     --noconfirm \
     --strip \
@@ -27,5 +27,5 @@ uv run pyinstaller \
     --add-data "../Resources/tools.json:." \
     src/setmac/__main__.py
 
-echo "==> CLI binary built at $DIST_DIR/setmac"
-echo "    Test with: $DIST_DIR/setmac --help"
+echo "==> CLI binary built at $DIST_DIR/setmac-cli"
+echo "    Test with: $DIST_DIR/setmac-cli --help"
