@@ -33,6 +33,14 @@ if [ -f "Resources/tools.json" ]; then
     echo "    Embedded tools.json"
 fi
 
+# Copy SwiftPM resource bundles so packaged apps can resolve Bundle.module resources.
+for resource_bundle in "$BUILD_DIR"/*.bundle; do
+    if [ -d "$resource_bundle" ]; then
+        cp -R "$resource_bundle" "$APP_BUNDLE/Contents/Resources/"
+        echo "    Embedded $(basename "$resource_bundle")"
+    fi
+done
+
 # Copy bundled configs if they exist
 if [ -d "Resources/configs" ]; then
     cp -R "Resources/configs" "$APP_BUNDLE/Contents/Resources/configs"
