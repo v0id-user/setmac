@@ -3,9 +3,72 @@ import os.log
 
 private let log = Logger(subsystem: "com.v0id.setmac", category: "CLIBridge")
 
-private let cliTimeout: TimeInterval = 30
+private let cliTimeout: TimeInterval = 120
 
-private final class PipeBuffer: @unchecked Sendable {
+/// Thread-safe line buffer that parses JSON lines and yields them to an AsyncStream as they arrive.
+private final class StreamingLineParser: @unchecked Sendable {
+    private var buffer = ""
+    private let lock = NSLock()
+    private let decoder = JSONDecoder()
+    private let continuation: AsyncStream<CLIMessage>.Continuation
+
+    init(continuation: AsyncStream<CLIMessage>.Continuation) {
+        self.continuation = continuation
+    }
+
+    /// Append raw data from the pipe. Parses and yields complete JSON lines immediately.
+    /// Never yields while holding the lock to avoid deadlock with terminationHandler's flush().
+    func append(_ chunk: Data) {
+        guard let text = String(data: chunk, encoding: .utf8) else { return }
+        var toYield: [CLIMessage] = []
+        lock.lock()
+        buffer.append(text)
+
+        // Parse all complete lines
+        while let newlineRange = buffer.range(of: "\n") {
+            let line = String(buffer[buffer.startIndex..<newlineRange.lowerBound])
+            buffer.removeSubrange(buffer.startIndex...newlineRange.lowerBound)
+
+            guard !line.isEmpty,
+                  let data = line.data(using: .utf8),
+                  let msg = try? decoder.decode(CLIMessage.self, from: data)
+            else {
+                if !line.isEmpty {
+                    log.warning("Unparseable line: \(line, privacy: .public)")
+                }
+                continue
+            }
+            toYield.append(msg)
+        }
+        lock.unlock()
+
+        for msg in toYield {
+            continuation.yield(msg)
+        }
+    }
+
+    /// Flush any remaining partial line (called at process exit).
+    func flush() {
+        lock.lock()
+        let remaining = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+        buffer = ""
+        lock.unlock()
+
+        guard !remaining.isEmpty,
+              let data = remaining.data(using: .utf8),
+              let msg = try? decoder.decode(CLIMessage.self, from: data)
+        else {
+            if !remaining.isEmpty {
+                log.warning("Unparseable trailing data: \(remaining, privacy: .public)")
+            }
+            return
+        }
+        continuation.yield(msg)
+    }
+}
+
+/// Thread-safe byte accumulator for stderr (not streamed, read at exit).
+private final class DataBuffer: @unchecked Sendable {
     private var data = Data()
     private let lock = NSLock()
 
@@ -80,19 +143,30 @@ actor CLIBridge {
             ]
             let currentPath = env["PATH"] ?? "/usr/bin:/bin"
             env["PATH"] = extraPaths.joined(separator: ":") + ":" + currentPath
+            // Unbuffer Python output in dev mode (venv/uv) for real-time streaming
+            if bundledCLI == nil || !FileManager.default.fileExists(atPath: bundledCLI!.path) {
+                env["PYTHONUNBUFFERED"] = "1"
+            }
             process.environment = env
 
             process.standardOutput = stdoutPipe
             process.standardError = stderrPipe
             process.standardInput = FileHandle.nullDevice
 
-            let stdoutBuffer = PipeBuffer()
-            let stderrBuffer = PipeBuffer()
+            // Stream stdout: parse JSON lines and yield to UI as they arrive
+            let parser = StreamingLineParser(continuation: continuation)
+            let stderrBuffer = DataBuffer()
 
+            // Parse and yield on a background queue to avoid blocking the main RunLoop.
+            // The handler can run on the main thread; yield blocks until the consumer takes the value.
+            // If we block the main thread, the MainActor consumer can't run — deadlock.
+            let parseQueue = DispatchQueue(label: "com.v0id.setmac.cli-parse", qos: .userInitiated)
             stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
                 let chunk = handle.availableData
                 if !chunk.isEmpty {
-                    stdoutBuffer.append(chunk)
+                    parseQueue.async {
+                        parser.append(chunk)
+                    }
                 }
             }
 
@@ -104,39 +178,30 @@ actor CLIBridge {
             }
 
             process.terminationHandler = { proc in
-                // Stop handlers FIRST, then close write ends to unblock any reads
+                // Drain remaining stdout before stopping handlers (avoids losing last chunks)
+                let stdoutHandle = stdoutPipe.fileHandleForReading
+                var data: Data
+                repeat {
+                    data = stdoutHandle.availableData
+                    if !data.isEmpty {
+                        parser.append(data)
+                    }
+                } while !data.isEmpty
+
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
                 stderrPipe.fileHandleForReading.readabilityHandler = nil
                 try? stdoutPipe.fileHandleForWriting.close()
                 try? stderrPipe.fileHandleForWriting.close()
 
-                let allData = stdoutBuffer.finalize()
-                let stderrData = stderrBuffer.finalize()
+                // Flush any remaining partial line
+                parser.flush()
 
+                let stderrData = stderrBuffer.finalize()
                 if let stderrStr = String(data: stderrData, encoding: .utf8), !stderrStr.isEmpty {
                     log.error("CLI stderr:\n\(stderrStr, privacy: .public)")
                 }
 
-                log.info("CLI exited with code \(proc.terminationStatus), received \(allData.count) stdout bytes, \(stderrData.count) stderr bytes")
-
-                var parsed = 0
-                if let output = String(data: allData, encoding: .utf8) {
-                    let decoder = JSONDecoder()
-                    for line in output.components(separatedBy: "\n") {
-                        guard !line.isEmpty,
-                              let lineData = line.data(using: .utf8),
-                              let msg = try? decoder.decode(CLIMessage.self, from: lineData)
-                        else {
-                            if !line.isEmpty {
-                                log.warning("Unparseable line: \(line, privacy: .public)")
-                            }
-                            continue
-                        }
-                        parsed += 1
-                        continuation.yield(msg)
-                    }
-                }
-                log.info("Parsed \(parsed) messages")
+                log.info("CLI exited with code \(proc.terminationStatus, privacy: .public)")
 
                 if proc.terminationStatus != 0 {
                     let stderrStr = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

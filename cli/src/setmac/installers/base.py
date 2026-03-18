@@ -46,7 +46,7 @@ def _shell_env() -> dict[str, str]:
     return env
 
 
-def _run_quiet(cmd: str, timeout: int = 30) -> subprocess.CompletedProcess:
+def _run_quiet(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
     """Run a shell command safely, never raising."""
     try:
         return subprocess.run(

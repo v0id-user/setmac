@@ -1,5 +1,7 @@
 """Status checking commands."""
 
+import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import click
@@ -11,7 +13,11 @@ from setmac.registry import Registry
 
 def _check_one(tool):
     """Check a single tool. Returns (tool_id, installed, version)."""
+    start = time.monotonic()
     installed, version = check_tool(tool)
+    elapsed = time.monotonic() - start
+    if elapsed > 2.0:
+        print(f"[SLOW] {tool.id} took {elapsed:.1f}s", file=sys.stderr)
     return tool.id, installed, version
 
 
