@@ -102,6 +102,20 @@
       ]
     },
     {
+      "id": "just",
+      "name": "just",
+      "description": "Command runner (modern Make alternative)",
+      "category": "cli-tools",
+      "icon": "terminal",
+      "icon_color": "purple",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v just",
+        "version_command": "just --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "just" }
+    },
+    {
       "id": "fzf",
       "name": "fzf",
       "description": "Fuzzy finder for the terminal",

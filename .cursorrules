@@ -11,6 +11,7 @@ Types: feat, fix, refactor, chore, docs, style, test, ci
 
 ## Must Follow
 - CLI binary is `setmac-cli` not `setmac` (case-insensitive APFS collision with GUI binary `Setmac`)
+- Use `just` (justfile) not `make` as command runner
 - No Xcode IDE. SPM + CLI only (`swift build`, `swift run`)
 - No hardcoded tool names — everything from `tools.json`
 - `Window` not `WindowGroup` (single-window app)

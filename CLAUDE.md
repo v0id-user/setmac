@@ -37,13 +37,16 @@ scripts/               # build-cli.sh, bundle.sh, generate-icon.sh, dmg.sh
 
 ## Key Commands
 
+Uses `just` (not `make`) as the command runner.
+
 ```bash
-make dev               # Build + run with live os.log streaming
-make build             # swift build (debug)
-make release           # swift build -c release
-make bundle            # .app bundle with embedded CLI + configs
-make status            # CLI: check all tool statuses
-make capture-configs   # CLI: snapshot current dotfiles
+just dev               # Clean build + run with live os.log streaming
+just build             # swift build (incremental)
+just release           # swift build -c release
+just bundle            # .app bundle with embedded CLI + configs
+just status            # CLI: check all tool statuses
+just capture-configs   # CLI: snapshot current dotfiles
+just                   # List all available recipes
 ```
 
 ## Critical Conventions
