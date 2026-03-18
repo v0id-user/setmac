@@ -1,6 +1,6 @@
 [project]
 name = "setmac"
-version = "1.0.0"
+version = "1.0.1"
 description = "macOS developer environment installer"
 requires-python = ">=3.12"
 dependencies = [

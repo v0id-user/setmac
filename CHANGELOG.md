@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v1.0.1 (2026-03-18)
+
+### Bug Fixes
+
+- Move Apple secret checks into workflow steps
+  ([`9061281`](https://github.com/v0id-user/setmac/commit/90612811213b1852d63a67eca796361b3815da6c))
+
+- Sign release artifacts and support notarization
+  ([`8802d8d`](https://github.com/v0id-user/setmac/commit/8802d8d422306d4052cc0b653e65695135449157))
+
+### Chores
+
+- Add local release dry-run and verification recipes
+  ([`3be2ef1`](https://github.com/v0id-user/setmac/commit/3be2ef1f5f6ff838d647cbd096ff189198cd301a))
+
+### Continuous Integration
+
+- Split releases into canary beta and stable workflows
+  ([`04b8405`](https://github.com/v0id-user/setmac/commit/04b840505e953c34a39e2309818153b961d38aa8))
+
+### Documentation
+
+- Document prerelease policy and Gatekeeper workaround
+  ([`e4cd175`](https://github.com/v0id-user/setmac/commit/e4cd175c49f37b9877d7d6c74961bd0632590596))
+
+
 ## v1.0.0 (2026-03-18)
 
 - Initial Release
