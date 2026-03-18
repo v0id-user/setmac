@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let log = Logger(subsystem: "com.v0id.setmac", category: "ContentView")
 
 struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .overview
@@ -20,8 +23,12 @@ struct ContentView: View {
             }
         }
         .task {
+            log.info("App launched, loading manifest...")
             state.manifest = ManifestLoader.load()
+            log.info("Manifest loaded: \(state.manifest != nil ? "\(state.totalTools) tools" : "nil")")
+            log.info("Starting status refresh...")
             await refreshStatuses()
+            log.info("Status refresh complete: \(state.installedCount)/\(state.totalTools) installed")
         }
     }
 

@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let log = Logger(subsystem: "com.v0id.setmac", category: "CategoryDetail")
 
 struct CategoryDetailView: View {
     let category: ToolCategory
@@ -46,6 +49,7 @@ struct CategoryDetailView: View {
     }
 
     private func install(_ toolId: String) async {
+        log.info("Installing tool: \(toolId)")
         isInstalling = true
         state.isRunning = true
         for await msg in await bridge.install(toolId: toolId) {
@@ -53,9 +57,11 @@ struct CategoryDetailView: View {
         }
         state.isRunning = false
         isInstalling = false
+        log.info("Install finished for: \(toolId)")
     }
 
     private func installCategory() async {
+        log.info("Installing category: \(category.rawValue)")
         isInstalling = true
         state.isRunning = true
         for await msg in await bridge.installCategory(category.rawValue) {
@@ -63,5 +69,6 @@ struct CategoryDetailView: View {
         }
         state.isRunning = false
         isInstalling = false
+        log.info("Category install finished: \(category.rawValue)")
     }
 }

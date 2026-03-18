@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let log = Logger(subsystem: "com.v0id.setmac", category: "ConfigsView")
 
 struct ConfigsView: View {
     let state: InstallState
@@ -67,6 +70,7 @@ struct ConfigsView: View {
     }
 
     private func runConfigsCommand(_ args: [String]) async {
+        log.info("Running configs command: \(args.joined(separator: " "))")
         isRunning = true
         state.isRunning = true
         for await msg in await bridge.runCommand(args) {
@@ -74,5 +78,6 @@ struct ConfigsView: View {
         }
         state.isRunning = false
         isRunning = false
+        log.info("Configs command finished: \(args.joined(separator: " "))")
     }
 }

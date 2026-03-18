@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let log = Logger(subsystem: "com.v0id.setmac", category: "InstallState")
 
 // MARK: - Tool status
 
@@ -83,17 +86,22 @@ final class InstallState {
             case "status":
                 if msg.status == "installed" {
                     statuses[tool] = .installed(version: msg.version)
+                    log.debug("\(tool): installed (\(msg.version ?? "no version"))")
                 } else {
                     statuses[tool] = .notInstalled
+                    log.debug("\(tool): not installed")
                 }
             case "progress":
                 statuses[tool] = .installing
+                log.info("\(tool): installing — \(msg.message ?? "")")
             case "complete":
                 statuses[tool] = .installed(version: msg.version)
+                log.info("\(tool): install complete (\(msg.version ?? ""))")
             case "error":
                 statuses[tool] = .error(msg.message ?? "Unknown error")
+                log.error("\(tool): error — \(msg.message ?? "Unknown error")")
             default:
-                break
+                log.warning("Unknown message type '\(msg.type)' for \(tool)")
             }
         }
 
