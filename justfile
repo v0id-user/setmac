@@ -12,7 +12,7 @@ cli_dir      := "cli"
 dev:
     swift package clean
     swift build
-    log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug --style compact &
+    /usr/bin/log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug --style compact &
     .build/debug/{{app_name}}
     -kill %1 2>/dev/null
 

@@ -7,7 +7,7 @@ enum ManifestLoader {
     static func load() -> ToolManifest? {
         // Try bundle resource first
         if let url = Bundle.module.url(forResource: "tools", withExtension: "json") {
-            log.info("Loading manifest from bundle: \(url.path)")
+            log.info("Loading manifest from bundle: \(url.path, privacy: .public)")
             if let manifest = decode(from: url) {
                 log.info("Loaded \(manifest.tools.count) tools from manifest")
                 return manifest
@@ -20,7 +20,7 @@ enum ManifestLoader {
             .appendingPathComponent("Resources")
             .appendingPathComponent("tools.json")
         if FileManager.default.fileExists(atPath: devPath.path) {
-            log.info("Loading manifest from dev path: \(devPath.path)")
+            log.info("Loading manifest from dev path: \(devPath.path, privacy: .public)")
             if let manifest = decode(from: devPath) {
                 log.info("Loaded \(manifest.tools.count) tools from manifest")
                 return manifest

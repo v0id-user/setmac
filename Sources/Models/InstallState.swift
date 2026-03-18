@@ -86,22 +86,24 @@ final class InstallState {
             case "status":
                 if msg.status == "installed" {
                     statuses[tool] = .installed(version: msg.version)
-                    log.debug("\(tool): installed (\(msg.version ?? "no version"))")
+                    log.debug("\(tool, privacy: .public): installed (\(msg.version ?? "no version", privacy: .public))")
                 } else {
                     statuses[tool] = .notInstalled
-                    log.debug("\(tool): not installed")
+                    log.debug("\(tool, privacy: .public): not installed")
                 }
             case "progress":
                 statuses[tool] = .installing
-                log.info("\(tool): installing — \(msg.message ?? "")")
+                log.info("\(tool, privacy: .public): installing — \(msg.message ?? "", privacy: .public)")
             case "complete":
                 statuses[tool] = .installed(version: msg.version)
-                log.info("\(tool): install complete (\(msg.version ?? ""))")
+                log.info("\(tool, privacy: .public): install complete (\(msg.version ?? "", privacy: .public))")
             case "error":
                 statuses[tool] = .error(msg.message ?? "Unknown error")
-                log.error("\(tool): error — \(msg.message ?? "Unknown error")")
+                log.error("\(tool, privacy: .public): error — \(msg.message ?? "Unknown error", privacy: .public)")
+            case "log":
+                log.info("\(tool, privacy: .public): \(msg.message ?? "", privacy: .public)")
             default:
-                log.warning("Unknown message type '\(msg.type)' for \(tool)")
+                log.warning("Unknown message type '\(msg.type, privacy: .public)' for \(tool, privacy: .public)")
             }
         }
 

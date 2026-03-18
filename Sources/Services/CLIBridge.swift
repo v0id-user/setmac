@@ -3,6 +3,8 @@ import os.log
 
 private let log = Logger(subsystem: "com.v0id.setmac", category: "CLIBridge")
 
+private let cliTimeout: TimeInterval = 30
+
 private final class PipeBuffer: @unchecked Sendable {
     private var data = Data()
     private let lock = NSLock()
@@ -30,6 +32,7 @@ actor CLIBridge {
         AsyncStream { continuation in
             let process = Process()
             let stdoutPipe = Pipe()
+            let stderrPipe = Pipe()
 
             // Try bundled binary first, fall back to uv run
             // Named "setmac-cli" to avoid case-insensitive collision with GUI binary "Setmac"
@@ -38,7 +41,7 @@ actor CLIBridge {
                 .appendingPathComponent("setmac-cli")
 
             if let cli = bundledCLI, FileManager.default.fileExists(atPath: cli.path) {
-                log.info("Using bundled CLI: \(cli.path)")
+                log.info("Using bundled CLI: \(cli.path, privacy: .public)")
                 process.executableURL = cli
                 process.arguments = args
             } else {
@@ -55,9 +58,9 @@ actor CLIBridge {
                 process.currentDirectoryURL = URL(
                     fileURLWithPath: FileManager.default.currentDirectoryPath
                 )
-                log.info("Using uv at \(process.executableURL?.path ?? "nil"), cwd: \(process.currentDirectoryURL?.path ?? "nil")")
+                log.info("Using uv at \(process.executableURL?.path ?? "nil", privacy: .public), cwd: \(process.currentDirectoryURL?.path ?? "nil", privacy: .public)")
             }
-            log.info("Running: \(process.executableURL?.path ?? "nil") \(args.joined(separator: " "))")
+            log.info("Running: \(process.executableURL?.path ?? "nil", privacy: .public) \(args.joined(separator: " "), privacy: .public)")
 
             // Rich PATH for subprocess tools
             var env = ProcessInfo.processInfo.environment
@@ -75,10 +78,11 @@ actor CLIBridge {
             process.environment = env
 
             process.standardOutput = stdoutPipe
-            process.standardError = FileHandle.nullDevice
+            process.standardError = stderrPipe
             process.standardInput = FileHandle.nullDevice
 
             let buffer = PipeBuffer()
+            let stderrBuffer = PipeBuffer()
 
             stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
                 let chunk = handle.availableData
@@ -87,11 +91,25 @@ actor CLIBridge {
                 }
             }
 
+            stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+                let chunk = handle.availableData
+                if !chunk.isEmpty {
+                    stderrBuffer.append(chunk)
+                }
+            }
+
             process.terminationHandler = { proc in
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
 
                 let remaining = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
                 let allData = buffer.finalize(remaining)
+
+                let stderrRemaining = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                let stderrData = stderrBuffer.finalize(stderrRemaining)
+                if let stderrStr = String(data: stderrData, encoding: .utf8), !stderrStr.isEmpty {
+                    log.error("CLI stderr: \(stderrStr, privacy: .public)")
+                }
 
                 log.info("CLI exited with code \(proc.terminationStatus), received \(allData.count) bytes")
 
@@ -104,7 +122,7 @@ actor CLIBridge {
                               let msg = try? decoder.decode(CLIMessage.self, from: lineData)
                         else {
                             if !line.isEmpty {
-                                log.warning("Unparseable line: \(line)")
+                                log.warning("Unparseable line: \(line, privacy: .public)")
                             }
                             continue
                         }
@@ -114,13 +132,25 @@ actor CLIBridge {
                 }
                 log.info("Parsed \(parsed) messages")
 
+                if proc.terminationStatus != 0 {
+                    let stderrMsg = String(data: stderrData, encoding: .utf8) ?? "CLI exited with code \(proc.terminationStatus)"
+                    continuation.yield(CLIMessage(
+                        type: "error",
+                        tool: nil,
+                        message: stderrMsg.trimmingCharacters(in: .whitespacesAndNewlines),
+                        status: "error",
+                        version: nil
+                    ))
+                }
+
                 continuation.finish()
             }
 
             do {
                 try process.run()
+                log.info("CLI process launched (pid: \(process.processIdentifier))")
             } catch {
-                log.error("Failed to launch CLI: \(error.localizedDescription)")
+                log.error("Failed to launch CLI: \(error.localizedDescription, privacy: .public)")
                 continuation.yield(CLIMessage(
                     type: "error",
                     tool: nil,
@@ -129,6 +159,15 @@ actor CLIBridge {
                     version: nil
                 ))
                 continuation.finish()
+                return
+            }
+
+            // Timeout — kill the process if it takes too long
+            DispatchQueue.global().asyncAfter(deadline: .now() + cliTimeout) {
+                if process.isRunning {
+                    log.error("CLI timed out after \(cliTimeout, privacy: .public)s, killing pid \(process.processIdentifier)")
+                    process.terminate()
+                }
             }
         }
     }
