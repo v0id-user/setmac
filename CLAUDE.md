@@ -92,11 +92,14 @@ chore: maintenance
 Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`. Use `feat!:` or `fix!:` for breaking changes.
 
 ## Release Pipeline
+- **Persistent rule**: Also follow `.cursor/rules/release-policy.mdc` as the project source of truth for release, versioning, signing, and Gatekeeper workaround policy.
 - **Canary**: Push to `canary` → auto-publishes `vX.Y.Z-canary.N`
 - **Beta**: Push to `beta` → auto-publishes `vX.Y.Z-beta.N`
 - **Stable**: Manual only — run "Release Stable" workflow from Actions, default ref `main`. Never auto-release stable.
 - **Versioning**: semantic-release is source of truth. Do not manually bump versions.
 - **Branch setup**: Create `canary` and `beta` from `main` if missing: `git checkout -b canary main && git push -u origin canary` (same for beta).
+- **Signing**: Release builds go through `scripts/release-build.sh`, sign artifacts by default, and only notarize when Apple signing secrets are configured.
+- **User notes**: If a release is only ad-hoc signed, include the Gatekeeper workaround in release/install notes.
 
 ## Development Rules
 
