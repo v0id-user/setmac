@@ -19,6 +19,9 @@ sed -i '' "s/^version      := .*/version      := \"$VERSION\"/" justfile
 
 echo "==> Building release artifacts..."
 export VERSION="$VERSION"
-just dmg
+swift build -c release
+bash scripts/build-cli.sh
+bash scripts/bundle.sh
+bash scripts/dmg.sh
 
 echo "==> Release build complete: dist/Setmac.dmg, cli/dist/setmac-cli"
