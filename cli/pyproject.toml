@@ -1,0 +1,24 @@
+[project]
+name = "rig-cli"
+version = "1.0.0"
+description = "Rig CLI — macOS setup automator"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+]
+
+[project.scripts]
+rig = "rig.cli:main"
+
+[dependency-groups]
+build = [
+    "pyinstaller>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rig"]

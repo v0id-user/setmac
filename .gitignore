@@ -1,0 +1,31 @@
+# Swift / SPM
+.build/
+.swiftpm/
+*.xcodeproj
+xcuserdata/
+DerivedData/
+Package.resolved
+
+# macOS
+.DS_Store
+*.dSYM
+*.app
+*.dmg
+
+# Build artifacts
+build/
+dist/
+
+# Python / uv
+cli/.venv/
+cli/__pycache__/
+cli/src/**/__pycache__/
+cli/dist/
+cli/build/
+*.pyc
+*.pyo
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/

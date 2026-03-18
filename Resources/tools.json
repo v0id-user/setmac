@@ -1,0 +1,583 @@
+{
+  "version": "1.0.0",
+  "name": "v0id's Dev Setup",
+  "description": "macOS developer environment installer — everything needed after a fresh format",
+  "author": "v0id",
+  "tools": [
+    {
+      "id": "xcode-clt",
+      "name": "Xcode Command Line Tools",
+      "description": "Apple's developer tools (compilers, git, make)",
+      "category": "essentials",
+      "icon": "hammer",
+      "icon_color": "blue",
+      "depends_on": [],
+      "check": {
+        "command": "xcode-select -p 2>/dev/null",
+        "version_command": "xcode-select --version 2>&1 | head -1"
+      },
+      "install": {
+        "method": "script",
+        "script": "xcode-select --install"
+      }
+    },
+    {
+      "id": "homebrew",
+      "name": "Homebrew",
+      "description": "The missing package manager for macOS",
+      "category": "essentials",
+      "icon": "mug",
+      "icon_color": "orange",
+      "depends_on": ["xcode-clt"],
+      "check": {
+        "command": "command -v brew",
+        "version_command": "brew --version 2>&1 | head -1"
+      },
+      "install": {
+        "method": "script",
+        "url": "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+      }
+    },
+
+    {
+      "id": "git",
+      "name": "Git",
+      "description": "Distributed version control",
+      "category": "cli-tools",
+      "icon": "arrow.triangle.branch",
+      "icon_color": "orange",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v git",
+        "version_command": "git --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "git" }
+    },
+    {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "description": "GitHub's official CLI tool",
+      "category": "cli-tools",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "icon_color": "gray",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v gh",
+        "version_command": "gh --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "gh" }
+    },
+    {
+      "id": "neovim",
+      "name": "Neovim",
+      "description": "Hyperextensible Vim-based text editor",
+      "category": "cli-tools",
+      "icon": "text.cursor",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v nvim",
+        "version_command": "nvim --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "neovim" },
+      "configs": [
+        { "source": "~/.config/nvim", "target": "nvim", "is_dir": true }
+      ]
+    },
+    {
+      "id": "tmux",
+      "name": "tmux",
+      "description": "Terminal multiplexer",
+      "category": "cli-tools",
+      "icon": "rectangle.split.3x1",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v tmux",
+        "version_command": "tmux -V 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "tmux" },
+      "configs": [
+        { "source": "~/.tmux.conf", "target": "tmux.conf" }
+      ]
+    },
+    {
+      "id": "fzf",
+      "name": "fzf",
+      "description": "Fuzzy finder for the terminal",
+      "category": "cli-tools",
+      "icon": "magnifyingglass",
+      "icon_color": "purple",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v fzf",
+        "version_command": "fzf --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "fzf" }
+    },
+    {
+      "id": "bat",
+      "name": "bat",
+      "description": "A cat clone with syntax highlighting",
+      "category": "cli-tools",
+      "icon": "doc.text",
+      "icon_color": "yellow",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v bat",
+        "version_command": "bat --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "bat" }
+    },
+    {
+      "id": "eza",
+      "name": "eza",
+      "description": "Modern replacement for ls",
+      "category": "cli-tools",
+      "icon": "list.bullet",
+      "icon_color": "cyan",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v eza",
+        "version_command": "eza --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "eza" }
+    },
+    {
+      "id": "fd",
+      "name": "fd",
+      "description": "Simple, fast alternative to find",
+      "category": "cli-tools",
+      "icon": "doc.text.magnifyingglass",
+      "icon_color": "teal",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v fd",
+        "version_command": "fd --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "fd" }
+    },
+    {
+      "id": "ripgrep",
+      "name": "ripgrep",
+      "description": "Recursively search directories for a regex pattern",
+      "category": "cli-tools",
+      "icon": "text.magnifyingglass",
+      "icon_color": "red",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v rg",
+        "version_command": "rg --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "ripgrep" }
+    },
+    {
+      "id": "starship",
+      "name": "Starship",
+      "description": "Cross-shell prompt",
+      "category": "cli-tools",
+      "icon": "star",
+      "icon_color": "yellow",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v starship",
+        "version_command": "starship --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "starship" },
+      "configs": [
+        { "source": "~/.config/starship.toml", "target": "starship.toml" }
+      ]
+    },
+    {
+      "id": "lazygit",
+      "name": "LazyGit",
+      "description": "Simple terminal UI for git",
+      "category": "cli-tools",
+      "icon": "arrow.triangle.branch",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v lazygit",
+        "version_command": "lazygit --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "lazygit" }
+    },
+    {
+      "id": "btop",
+      "name": "btop",
+      "description": "Resource monitor",
+      "category": "cli-tools",
+      "icon": "chart.bar",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v btop",
+        "version_command": "btop --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "btop" }
+    },
+    {
+      "id": "fastfetch",
+      "name": "Fastfetch",
+      "description": "System info tool",
+      "category": "cli-tools",
+      "icon": "info.circle",
+      "icon_color": "cyan",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v fastfetch",
+        "version_command": "fastfetch --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "fastfetch" }
+    },
+    {
+      "id": "yazi",
+      "name": "Yazi",
+      "description": "Terminal file manager",
+      "category": "cli-tools",
+      "icon": "folder",
+      "icon_color": "yellow",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v yazi",
+        "version_command": "yazi --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "yazi" }
+    },
+    {
+      "id": "tree-sitter",
+      "name": "Tree-sitter",
+      "description": "Parser generator for syntax highlighting",
+      "category": "cli-tools",
+      "icon": "tree",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v tree-sitter",
+        "version_command": "tree-sitter --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "tree-sitter" }
+    },
+    {
+      "id": "gnupg",
+      "name": "GnuPG",
+      "description": "GNU Privacy Guard for encryption and signing",
+      "category": "cli-tools",
+      "icon": "lock.shield",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v gpg",
+        "version_command": "gpg --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "gnupg" }
+    },
+    {
+      "id": "openssh",
+      "name": "OpenSSH",
+      "description": "Secure shell connectivity tools",
+      "category": "cli-tools",
+      "icon": "network",
+      "icon_color": "gray",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v ssh",
+        "version_command": "ssh -V 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "openssh" }
+    },
+    {
+      "id": "imagemagick",
+      "name": "ImageMagick",
+      "description": "Image manipulation tools",
+      "category": "cli-tools",
+      "icon": "photo",
+      "icon_color": "pink",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v magick",
+        "version_command": "magick --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "imagemagick" }
+    },
+
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "description": "AI-powered code editor",
+      "category": "applications",
+      "icon": "cursorarrow.rays",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Cursor.app",
+        "version_command": "cursor --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_cask", "target": "cursor" }
+    },
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "description": "Anthropic's Claude CLI for coding",
+      "category": "applications",
+      "icon": "brain",
+      "icon_color": "orange",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v claude",
+        "version_command": "claude --version 2>&1"
+      },
+      "install": { "method": "brew_cask", "target": "claude-code" }
+    },
+    {
+      "id": "ghostty",
+      "name": "Ghostty",
+      "description": "GPU-accelerated terminal emulator",
+      "category": "applications",
+      "icon": "terminal",
+      "icon_color": "white",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Ghostty.app"
+      },
+      "install": { "method": "brew_cask", "target": "ghostty" },
+      "configs": [
+        { "source": "~/.config/ghostty/config", "target": "ghostty/config" }
+      ]
+    },
+    {
+      "id": "raycast",
+      "name": "Raycast",
+      "description": "Productivity launcher and toolkit",
+      "category": "applications",
+      "icon": "sparkle.magnifyingglass",
+      "icon_color": "red",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Raycast.app"
+      },
+      "install": { "method": "brew_cask", "target": "raycast" }
+    },
+    {
+      "id": "hammerspoon",
+      "name": "Hammerspoon",
+      "description": "macOS desktop automation",
+      "category": "applications",
+      "icon": "hammer.circle",
+      "icon_color": "yellow",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Hammerspoon.app"
+      },
+      "install": { "method": "brew_cask", "target": "hammerspoon" },
+      "configs": [
+        { "source": "~/.hammerspoon/init.lua", "target": "hammerspoon/init.lua" }
+      ]
+    },
+    {
+      "id": "rectangle",
+      "name": "Rectangle",
+      "description": "Window management via keyboard shortcuts",
+      "category": "applications",
+      "icon": "rectangle.split.2x2",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Rectangle.app"
+      },
+      "install": { "method": "brew_cask", "target": "rectangle" }
+    },
+    {
+      "id": "karabiner-elements",
+      "name": "Karabiner-Elements",
+      "description": "Advanced keyboard remapping",
+      "category": "applications",
+      "icon": "keyboard",
+      "icon_color": "gray",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Karabiner-Elements.app"
+      },
+      "install": { "method": "brew_cask", "target": "karabiner-elements" },
+      "configs": [
+        { "source": "~/.config/karabiner/karabiner.json", "target": "karabiner/karabiner.json" }
+      ]
+    },
+
+    {
+      "id": "go",
+      "name": "Go",
+      "description": "Go programming language",
+      "category": "languages",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "icon_color": "cyan",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v go",
+        "version_command": "go version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "go" }
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "description": "JavaScript runtime",
+      "category": "languages",
+      "icon": "server.rack",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v node",
+        "version_command": "node --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "node" }
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "description": "Python programming language",
+      "category": "languages",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "icon_color": "yellow",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v python3",
+        "version_command": "python3 --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "python@3.14" }
+    },
+    {
+      "id": "luajit",
+      "name": "LuaJIT",
+      "description": "Just-In-Time Compiler for Lua",
+      "category": "languages",
+      "icon": "moon",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v luajit",
+        "version_command": "luajit -v 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "luajit" }
+    },
+
+    {
+      "id": "bun",
+      "name": "Bun",
+      "description": "Fast JavaScript runtime and toolkit",
+      "category": "languages",
+      "icon": "bolt",
+      "icon_color": "orange",
+      "depends_on": [],
+      "check": {
+        "command": "command -v bun",
+        "version_command": "bun --version 2>&1"
+      },
+      "install": {
+        "method": "script",
+        "script": "curl -fsSL https://bun.sh/install | bash"
+      }
+    },
+    {
+      "id": "nvm",
+      "name": "NVM",
+      "description": "Node Version Manager",
+      "category": "languages",
+      "icon": "arrow.up.arrow.down.circle",
+      "icon_color": "green",
+      "depends_on": [],
+      "check": {
+        "path": "~/.nvm/nvm.sh"
+      },
+      "install": {
+        "method": "script",
+        "url": "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh"
+      }
+    },
+
+    {
+      "id": "ohmyzsh",
+      "name": "Oh My Zsh",
+      "description": "Framework for managing Zsh configuration",
+      "category": "standalone",
+      "icon": "terminal.fill",
+      "icon_color": "green",
+      "depends_on": [],
+      "check": {
+        "path": "~/.oh-my-zsh"
+      },
+      "install": {
+        "method": "script",
+        "script": "RUNZSH=no KEEP_ZSHRC=yes sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+      },
+      "configs": [
+        { "source": "~/.zshrc", "target": "zshrc" }
+      ]
+    },
+    {
+      "id": "tpm",
+      "name": "Tmux Plugin Manager",
+      "description": "Plugin manager for tmux",
+      "category": "standalone",
+      "icon": "puzzlepiece.extension",
+      "icon_color": "green",
+      "depends_on": ["tmux"],
+      "check": {
+        "path": "~/.tmux/plugins/tpm"
+      },
+      "install": {
+        "method": "script",
+        "script": "git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm"
+      }
+    },
+    {
+      "id": "lazyvim",
+      "name": "LazyVim",
+      "description": "Neovim config with lazy.nvim plugin manager",
+      "category": "standalone",
+      "icon": "text.cursor",
+      "icon_color": "blue",
+      "depends_on": ["neovim", "git"],
+      "check": {
+        "path": "~/.config/nvim/lazyvim.json"
+      },
+      "install": {
+        "method": "custom",
+        "script": "git clone https://github.com/LazyVim/starter ~/.config/nvim && rm -rf ~/.config/nvim/.git"
+      }
+    },
+    {
+      "id": "pier",
+      "name": "Pier",
+      "description": "macOS app management CLI",
+      "category": "standalone",
+      "icon": "shippingbox",
+      "icon_color": "brown",
+      "depends_on": ["git"],
+      "check": {
+        "command": "command -v pier"
+      },
+      "install": {
+        "method": "custom",
+        "script": "git clone https://github.com/neethanwu/pier /tmp/pier && cd /tmp/pier && make install"
+      }
+    },
+
+    {
+      "id": "git-config",
+      "name": "Git Config",
+      "description": "Git configuration (non-sensitive)",
+      "category": "configs",
+      "icon": "gearshape",
+      "icon_color": "orange",
+      "depends_on": ["git"],
+      "check": {
+        "path": "~/.config/git/config"
+      },
+      "install": { "method": "config" },
+      "configs": [
+        { "source": "~/.config/git/config", "target": "git/config" }
+      ]
+    }
+  ]
+}
