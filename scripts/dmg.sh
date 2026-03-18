@@ -8,7 +8,7 @@ DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
 STAGING="$DIST_DIR/dmg-staging"
 
 if [ ! -d "$APP_BUNDLE" ]; then
-    echo "Error: $APP_BUNDLE not found. Run 'make bundle' first."
+    echo "Error: $APP_BUNDLE not found. Run 'just bundle' first."
     exit 1
 fi
 

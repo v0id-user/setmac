@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="Setmac"
 BUNDLE_ID="com.v0id.setmac"
-VERSION="1.0.0"
+VERSION="${VERSION:-1.0.0}"
 BUILD_DIR=".build/release"
 DIST_DIR="dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
