@@ -234,42 +234,35 @@ def _script_install(tool: Tool) -> bool:
 
     emit_log(f"$ {script}", tool=tool.id)
 
-    password: str | None = None
+    env = _shell_env()
+    keepalive: subprocess.Popen | None = None
     if tool.install.requires_admin:
-        emit_auth_required(tool.id, "Admin password required for installation")
-        if sys.stdin.isatty():
-            print("Admin password required. Enter password: ", end="", file=sys.stderr, flush=True)
-        try:
-            line = sys.stdin.readline()
-            password = line.strip() if line else ""
-        except Exception:
-            password = ""
+        password = _request_admin_password(tool)
         if not password:
             emit_error(tool.id, "Installation cancelled — no password provided")
             return False
 
+        authenticated = _prime_sudo_credentials(tool, password, env)
+        if not authenticated:
+            return False
+        keepalive = _start_sudo_keepalive(env)
+
     try:
-        if password is not None:
-            result = subprocess.run(
-                ["sudo", "-S", "bash", "-c", script],
-                input=password + "\n",
-                capture_output=True,
-                text=True,
-                timeout=600,
-                env=_shell_env(),
-            )
-        else:
-            result = subprocess.run(
-                script,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=600,
-                env=_shell_env(),
-            )
+        result = subprocess.run(
+            script,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=600,
+            env=env,
+        )
     except subprocess.TimeoutExpired:
         emit_error(tool.id, "Script timed out after 10 minutes")
         return False
+    finally:
+        _stop_sudo_keepalive(keepalive)
+        if tool.install.requires_admin:
+            _invalidate_sudo_credentials(env)
 
     _log_output(result, tool.id)
     return result.returncode == 0
@@ -285,3 +278,80 @@ def _log_output(result: subprocess.CompletedProcess, tool_id: str) -> None:
                 line = line.strip()
                 if line:
                     emit_log(line, tool=tool_id)
+
+
+def _request_admin_password(tool: Tool) -> str:
+    """Request an admin password from the GUI or terminal."""
+    emit_auth_required(tool.id, "Admin password required for installation")
+    if sys.stdin.isatty():
+        print("Admin password required. Enter password: ", end="", file=sys.stderr, flush=True)
+
+    try:
+        line = sys.stdin.readline()
+    except Exception:
+        return ""
+
+    return line.strip() if line else ""
+
+
+def _prime_sudo_credentials(tool: Tool, password: str, env: dict[str, str]) -> bool:
+    """Validate the password in-memory and cache sudo for child processes."""
+    try:
+        result = subprocess.run(
+            ["sudo", "-S", "-k", "-v"],
+            input=password + "\n",
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        emit_error(tool.id, "Admin authentication timed out")
+        return False
+
+    _log_output(result, tool.id)
+    if result.returncode != 0:
+        emit_error(tool.id, "Admin authentication failed")
+        return False
+
+    return True
+
+
+def _start_sudo_keepalive(env: dict[str, str]) -> subprocess.Popen | None:
+    """Keep sudo fresh while a long-running installer is active."""
+    try:
+        return subprocess.Popen(
+            ["/bin/sh", "-c", "while true; do sudo -n -v >/dev/null 2>&1 || exit 0; sleep 60; done"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+    except Exception:
+        return None
+
+
+def _stop_sudo_keepalive(process: subprocess.Popen | None) -> None:
+    """Best-effort cleanup for the keepalive helper."""
+    if process is None:
+        return
+    try:
+        process.terminate()
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        process.kill()
+    except Exception:
+        pass
+
+
+def _invalidate_sudo_credentials(env: dict[str, str]) -> None:
+    """Drop cached sudo credentials after privileged install flow ends."""
+    try:
+        subprocess.run(
+            ["sudo", "-k"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            env=env,
+        )
+    except Exception:
+        pass
