@@ -2,6 +2,9 @@
 
 import json
 import sys
+import threading
+
+_lock = threading.Lock()
 
 
 def emit(
@@ -21,7 +24,9 @@ def emit(
         payload["status"] = status
     if version is not None:
         payload["version"] = version
-    print(json.dumps(payload), flush=True)
+    line = json.dumps(payload)
+    with _lock:
+        print(line, flush=True)
 
 
 def emit_status(tool: str, status: str, version: str | None = None):

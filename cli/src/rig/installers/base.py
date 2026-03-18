@@ -12,8 +12,14 @@ from rig.registry import Tool
 
 # ─── Shell environment ────────────────────────────────────────
 
+_cached_env: dict[str, str] | None = None
+
+
 def _shell_env() -> dict[str, str]:
-    """Build a rich PATH that covers all common install locations."""
+    """Build a rich PATH that covers all common install locations. Cached."""
+    global _cached_env
+    if _cached_env is not None:
+        return _cached_env
     env = os.environ.copy()
     home = os.path.expanduser("~")
     extra_paths = [
@@ -34,9 +40,9 @@ def _shell_env() -> dict[str, str]:
     ]
     current = env.get("PATH", "")
     env["PATH"] = ":".join(extra_paths) + ":" + current
-    # Prevent interactive prompts from brew etc.
     env["NONINTERACTIVE"] = "1"
     env["HOMEBREW_NO_AUTO_UPDATE"] = "1"
+    _cached_env = env
     return env
 
 
