@@ -26,6 +26,21 @@ enum ToolStatus: Equatable {
     }
 }
 
+// MARK: - Auth request (for password prompt)
+
+struct AuthRequest: Identifiable {
+    let id = UUID()
+    let tool: String
+    let message: String
+}
+
+enum ConfigStatus: String, Codable {
+    case bundled
+    case system
+    case bundledAndSystem = "bundled+system"
+    case missing
+}
+
 // MARK: - CLI message (decoded from JSON-line output)
 
 struct CLIMessage: Codable {
@@ -34,6 +49,8 @@ struct CLIMessage: Codable {
     let message: String?
     let status: String?
     let version: String?
+    let source: String?
+    let target: String?
 }
 
 // MARK: - Observable state
@@ -44,6 +61,14 @@ final class InstallState {
     var statuses: [String: ToolStatus] = [:]
     var logLines: [LogLine] = []
     var isRunning = false
+
+    /// Shown when CLI emits auth_required; user enters password in sheet.
+    var pendingAuthRequest: AuthRequest?
+    /// Called with password (or "" for cancel) when user submits/cancels.
+    var pendingAuthContinuation: ((String) -> Void)?
+
+    /// Config status keyed by "toolId:target" for bundled/system/missing.
+    var configStatuses: [String: ConfigStatus] = [:]
 
     struct LogLine: Identifiable {
         let id = UUID()
@@ -102,6 +127,11 @@ final class InstallState {
                 log.error("\(tool, privacy: .public): error — \(msg.message ?? "Unknown error", privacy: .public)")
             case "log":
                 log.info("\(tool, privacy: .public): \(msg.message ?? "", privacy: .public)")
+            case "config_status":
+                if let target = msg.target, let statusStr = msg.status,
+                   let status = ConfigStatus(rawValue: statusStr) {
+                    configStatuses["\(tool):\(target)"] = status
+                }
             default:
                 log.warning("Unknown message type '\(msg.type, privacy: .public)' for \(tool, privacy: .public)")
             }
@@ -114,5 +144,16 @@ final class InstallState {
                 logLines.removeFirst(logLines.count - 500)
             }
         }
+    }
+
+    /// Called from password sheet when user submits or cancels.
+    func fulfillAuthRequest(_ password: String) {
+        pendingAuthContinuation?(password)
+        pendingAuthRequest = nil
+        pendingAuthContinuation = nil
+    }
+
+    func configStatus(toolId: String, target: String) -> ConfigStatus? {
+        configStatuses["\(toolId):\(target)"]
     }
 }

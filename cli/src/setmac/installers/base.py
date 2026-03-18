@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import traceback
 
-from setmac.output import emit_complete, emit_error, emit_log, emit_progress, emit_status
+from setmac.output import (
+    emit_auth_required,
+    emit_complete,
+    emit_error,
+    emit_log,
+    emit_progress,
+    emit_status,
+)
 from setmac.registry import Tool
 
 
@@ -226,15 +234,39 @@ def _script_install(tool: Tool) -> bool:
 
     emit_log(f"$ {script}", tool=tool.id)
 
+    password: str | None = None
+    if tool.install.requires_admin:
+        emit_auth_required(tool.id, "Admin password required for installation")
+        if sys.stdin.isatty():
+            print("Admin password required. Enter password: ", end="", file=sys.stderr, flush=True)
+        try:
+            line = sys.stdin.readline()
+            password = line.strip() if line else ""
+        except Exception:
+            password = ""
+        if not password:
+            emit_error(tool.id, "Installation cancelled — no password provided")
+            return False
+
     try:
-        result = subprocess.run(
-            script,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=600,
-            env=_shell_env(),
-        )
+        if password is not None:
+            result = subprocess.run(
+                ["sudo", "-S", "bash", "-c", script],
+                input=password + "\n",
+                capture_output=True,
+                text=True,
+                timeout=600,
+                env=_shell_env(),
+            )
+        else:
+            result = subprocess.run(
+                script,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=600,
+                env=_shell_env(),
+            )
     except subprocess.TimeoutExpired:
         emit_error(tool.id, "Script timed out after 10 minutes")
         return False

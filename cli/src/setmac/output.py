@@ -47,3 +47,22 @@ def emit_error(tool: str, message: str):
 
 def emit_complete(tool: str, version: str | None = None):
     emit("complete", tool=tool, status="installed", version=version)
+
+
+def emit_auth_required(tool: str, message: str):
+    """Emit auth_required so the app can prompt for admin password."""
+    emit("auth_required", tool=tool, message=message)
+
+
+def emit_config_status(tool: str, source: str, target: str, status: str):
+    """Emit config_status for GUI: bundled, system, bundled+system, or missing."""
+    payload = {
+        "type": "config_status",
+        "tool": tool,
+        "source": source,
+        "target": target,
+        "status": status,
+    }
+    line = json.dumps(payload)
+    with _lock:
+        print(line, flush=True)

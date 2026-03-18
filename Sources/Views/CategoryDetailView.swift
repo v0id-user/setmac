@@ -43,6 +43,7 @@ struct CategoryDetailView: View {
                     Task { await installCategory() }
                 }
                 .disabled(isInstalling || allInstalled)
+                .help("Install all tools in this category")
             }
         }
         .navigationTitle(category.displayName)
@@ -53,7 +54,7 @@ struct CategoryDetailView: View {
         isInstalling = true
         state.isRunning = true
         for await msg in await bridge.install(toolId: toolId) {
-            state.applyMessage(msg)
+            await processMessage(msg)
         }
         state.isRunning = false
         isInstalling = false
@@ -65,10 +66,25 @@ struct CategoryDetailView: View {
         isInstalling = true
         state.isRunning = true
         for await msg in await bridge.installCategory(category.rawValue) {
-            state.applyMessage(msg)
+            await processMessage(msg)
         }
         state.isRunning = false
         isInstalling = false
         log.info("Category install finished: \(category.rawValue)")
+    }
+
+    private func processMessage(_ msg: CLIMessage) async {
+        if msg.type == "auth_required" {
+            let password = await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
+                state.pendingAuthRequest = AuthRequest(
+                    tool: msg.tool ?? "",
+                    message: msg.message ?? "Admin password required for installation"
+                )
+                state.pendingAuthContinuation = { cont.resume(returning: $0) }
+            }
+            await bridge.providePassword(password)
+        } else {
+            state.applyMessage(msg)
+        }
     }
 }
