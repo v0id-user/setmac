@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.2 (2026-03-18)
+
+### Bug Fixes
+
+- Include packaged resources needed at app launch
+  ([`d0cbfde`](https://github.com/v0id-user/setmac/commit/d0cbfde71fdd7265a874d85953b72885acc9050d))
+
+
 ## v1.0.1 (2026-03-18)
 
 ### Bug Fixes
