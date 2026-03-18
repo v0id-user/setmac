@@ -109,6 +109,13 @@ xattr -cr /Applications/Setmac.app
 
 You can also Control-click the app and choose `Open`. This is only a temporary workaround for older unsigned releases; the proper fix is signed and notarized builds.
 
+## Maintainer docs
+
+- Release and hotfix playbook: `docs/ai-maintainer-playbook.md`
+- Persistent Cursor rule: `.cursor/rules/release-policy.mdc`
+- Project skill for AI release work: `.cursor/skills/setmac-release-ops/SKILL.md`
+- Agent guidance: `CLAUDE.md`
+
 ## Tools included
 
 **Essentials**: Xcode CLT, Homebrew
