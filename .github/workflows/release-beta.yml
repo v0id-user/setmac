@@ -1,0 +1,82 @@
+name: Release Beta
+
+on:
+  push:
+    branches: [beta]
+
+jobs:
+  release:
+    name: Version and Release (Beta)
+    runs-on: macos-26
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Import Apple signing certificate
+        if: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/setmac-signing.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/setmac-signing.keychain-db"
+          KEYCHAIN_PASSWORD="setmac-temporary-keychain"
+
+          echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Sync root deps (semantic-release)
+        run: uv sync
+
+      - name: Run semantic-release (beta)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: uv run semantic-release version --as-prerelease --prerelease-token beta
+
+      - name: Upload artifacts to release
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          gh release upload "v$VERSION" dist/Setmac.dmg cli/dist/setmac-cli --clobber
+
+      - name: Append install notes to release
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+          gh release view "v$VERSION" --json body --jq .body > "$NOTES_FILE"
+          cat <<'EOF' >> "$NOTES_FILE"
+
+          ## Install Notes
+
+          - Releases are ad-hoc signed by default and switch to full Developer ID signing and notarization automatically when Apple signing secrets are configured in GitHub Actions.
+          - Ad-hoc signed builds are still not notarized, so Gatekeeper may block them after download.
+          - If macOS blocks the app as "damaged" or untrusted, move `Setmac.app` to `/Applications` and run `xattr -cr /Applications/Setmac.app`, or Control-click the app and choose `Open`.
+          - If Gatekeeper still blocks the app, download the newest release artifact.
+          EOF
+          gh release edit "v$VERSION" --notes-file "$NOTES_FILE"
