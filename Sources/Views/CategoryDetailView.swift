@@ -13,28 +13,39 @@ struct CategoryDetailView: View {
         state.toolsForCategory(category)
     }
 
-    private var allInstalled: Bool {
-        tools.allSatisfy { state.status(for: $0.id).isInstalled }
+    private var installedCount: Int {
+        tools.filter { state.status(for: $0.id).isInstalled }.count
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            List {
-                ForEach(tools) { tool in
-                    ToolCardView(
-                        tool: tool,
-                        status: state.status(for: tool.id),
-                        onInstall: {
-                            Task { await install(tool.id) }
-                        }
-                    )
-                }
-            }
+    private var allInstalled: Bool { installedCount == tools.count }
 
-            if !state.logLines.isEmpty {
-                Divider()
-                LogOutputView(lines: state.logLines, onClear: { state.clearLogs() })
-                    .frame(maxHeight: 200)
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                categoryBanner
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 140, maximum: 160), spacing: 14)],
+                    spacing: 14
+                ) {
+                    ForEach(tools) { tool in
+                        AppStoreToolCard(
+                            tool: tool,
+                            status: state.status(for: tool.id),
+                            onInstall: { Task { await install(tool.id) } }
+                        )
+                    }
+                }
+                .padding()
+
+                if !state.logLines.isEmpty {
+                    Divider()
+                        .padding(.horizontal)
+                    LogOutputView(lines: state.logLines, onClear: { state.clearLogs() })
+                        .frame(maxHeight: 220)
+                        .padding(.horizontal)
+                        .padding(.bottom)
+                }
             }
         }
         .toolbar {
@@ -48,6 +59,54 @@ struct CategoryDetailView: View {
         }
         .navigationTitle(category.displayName)
     }
+
+    // MARK: - Banner
+
+    private var categoryBanner: some View {
+        ZStack(alignment: .bottomLeading) {
+            LinearGradient(
+                colors: [category.color, category.color.opacity(0.5)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Subtle decorative circle
+            Circle()
+                .fill(.white.opacity(0.07))
+                .frame(width: 160)
+                .offset(x: -30, y: 30)
+
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Image(systemName: category.icon)
+                        .font(.system(size: 36, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+
+                    Text(category.displayName)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+
+                    Text("\(tools.count) tools  ·  \(installedCount) installed")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+
+                Spacer()
+
+                if isInstalling {
+                    ProgressView()
+                        .tint(.white)
+                        .padding(.bottom, 4)
+                }
+            }
+            .padding(24)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 150)
+    }
+
+    // MARK: - Actions
 
     private func install(_ toolId: String) async {
         log.info("Installing tool: \(toolId)")

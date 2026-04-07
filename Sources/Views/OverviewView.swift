@@ -8,96 +8,121 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                headerSection
+            VStack(alignment: .leading, spacing: 32) {
+                heroCard
+                    .padding(.horizontal)
 
-                // Category summary cards
-                LazyVGrid(columns: [
-                    GridItem(.adaptive(minimum: 200, maximum: 300), spacing: 16)
-                ], spacing: 16) {
-                    ForEach(state.categories) { category in
-                        CategorySummaryCard(category: category, state: state) {
-                            selection = .category(category)
-                        }
-                    }
+                ForEach(state.categories) { category in
+                    CategoryRow(
+                        category: category,
+                        state: state,
+                        onSeeAll: { selection = .category(category) },
+                        onInstall: { toolId in Task { await install(toolId) } }
+                    )
                 }
 
-                // Log output
                 if !state.logLines.isEmpty {
                     LogOutputView(lines: state.logLines, onClear: { state.clearLogs() })
+                        .padding(.horizontal)
                 }
             }
-            .padding()
+            .padding(.vertical)
         }
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItem(placement: .primaryAction) {
                 Button("Refresh", systemImage: "arrow.clockwise") {
                     Task { await refresh() }
                 }
                 .disabled(state.isRunning)
                 .help("Refresh tool installation status")
-
-                Button("Install All", systemImage: "arrow.down.circle") {
-                    Task { await installAll() }
-                }
-                .disabled(isInstalling || state.installedCount == state.totalTools)
-                .help("Install all tools from the manifest")
             }
         }
         .navigationTitle("Overview")
     }
 
-    private var headerSection: some View {
-        HStack(spacing: 16) {
-            // Progress ring
-            ZStack {
-                Circle()
-                    .stroke(.quaternary, lineWidth: 8)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(.green, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut, value: progress)
-                VStack(spacing: 2) {
-                    Text("\(state.installedCount)")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .monospacedDigit()
-                    Text("of \(state.totalTools)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 100, height: 100)
+    // MARK: - Hero card
 
-            VStack(alignment: .leading, spacing: 4) {
-                if let manifest = state.manifest {
-                    Text(manifest.name)
-                        .font(.title)
-                        .fontWeight(.bold)
-                    Text(manifest.description)
-                        .foregroundStyle(.secondary)
-                }
-                if state.isRunning {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Checking tools...")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+    private var heroCard: some View {
+        ZStack(alignment: .bottomLeading) {
+            // Background gradient
+            LinearGradient(
+                colors: [
+                    Color(red: 0.13, green: 0.22, blue: 0.82),
+                    Color(red: 0.38, green: 0.18, blue: 0.78)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Decorative circles
+            Circle()
+                .fill(.white.opacity(0.06))
+                .frame(width: 220)
+                .offset(x: 340, y: -50)
+            Circle()
+                .fill(.white.opacity(0.04))
+                .frame(width: 140)
+                .offset(x: 460, y: 30)
+
+            HStack(alignment: .bottom, spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let manifest = state.manifest {
+                        Text(manifest.name)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                        Text(manifest.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.72))
+                            .lineLimit(2)
+                    }
+
+                    Spacer().frame(height: 6)
+
+                    HStack(spacing: 10) {
+                        ProgressView(
+                            value: Double(state.installedCount),
+                            total: Double(max(state.totalTools, 1))
+                        )
+                        .tint(.white)
+                        .frame(maxWidth: 160)
+
+                        Text("\(state.installedCount) / \(state.totalTools)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.8))
+
+                        if state.isRunning {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .tint(.white)
+                        }
                     }
                 }
+
+                Spacer()
+
+                Button {
+                    Task { await installAll() }
+                } label: {
+                    Label("Install All", systemImage: "arrow.down.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 9)
+                        .background(.white.opacity(0.18), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isInstalling || state.installedCount == state.totalTools)
             }
-
-            Spacer()
+            .padding(24)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: 178)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .blue.opacity(0.28), radius: 20, y: 6)
     }
 
-    private var progress: Double {
-        guard state.totalTools > 0 else { return 0 }
-        return Double(state.installedCount) / Double(state.totalTools)
-    }
+    // MARK: - Actions
 
     private func refresh() async {
         state.isRunning = true
@@ -117,6 +142,14 @@ struct OverviewView: View {
         isInstalling = false
     }
 
+    private func install(_ toolId: String) async {
+        state.isRunning = true
+        for await msg in await bridge.install(toolId: toolId) {
+            await processMessage(msg)
+        }
+        state.isRunning = false
+    }
+
     private func processMessage(_ msg: CLIMessage) async {
         if msg.type == "auth_required" {
             let password = await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
@@ -133,50 +166,58 @@ struct OverviewView: View {
     }
 }
 
-struct CategorySummaryCard: View {
+// MARK: - Category row
+
+private struct CategoryRow: View {
     let category: ToolCategory
     let state: InstallState
-    let onTap: () -> Void
+    let onSeeAll: () -> Void
+    let onInstall: (String) -> Void
 
     private var tools: [ToolDefinition] {
         state.toolsForCategory(category)
     }
 
-    private var installed: Int {
+    private var installedCount: Int {
         tools.filter { state.status(for: $0.id).isInstalled }.count
     }
 
-    private var hasErrors: Bool {
-        tools.contains { if case .error = state.status(for: $0.id) { return true }; return false }
-    }
-
     var body: some View {
-        Button(action: onTap) {
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: category.icon)
-                            .foregroundStyle(category.color)
-                        Text(category.displayName)
-                            .font(.headline)
-                        Spacer()
-                        if hasErrors {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                        Text("\(installed)/\(tools.count)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(alignment: .firstTextBaseline) {
+                Image(systemName: category.icon)
+                    .foregroundStyle(category.color)
+                    .font(.callout)
+                Text(category.displayName)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                Text("·  \(installedCount)/\(tools.count)")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+                Spacer()
+                Button("See All", action: onSeeAll)
+                    .font(.subheadline)
+                    .foregroundStyle(.blue)
+                    .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
 
-                    ProgressView(value: Double(installed), total: Double(max(tools.count, 1)))
-                        .tint(installed == tools.count ? .green : hasErrors ? .red : .blue)
+            // Horizontal scroll of cards
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(tools) { tool in
+                        AppStoreToolCard(
+                            tool: tool,
+                            status: state.status(for: tool.id),
+                            onInstall: { onInstall(tool.id) }
+                        )
+                    }
                 }
-                .padding(4)
+                .padding(.horizontal)
+                .padding(.vertical, 4)
             }
         }
-        .buttonStyle(.plain)
     }
 }

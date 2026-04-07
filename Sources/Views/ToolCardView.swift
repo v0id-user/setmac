@@ -1,22 +1,28 @@
 import SwiftUI
 
+/// Horizontal list-style card — used in search results and anywhere a row layout is needed.
 struct ToolCardView: View {
     let tool: ToolDefinition
     let status: ToolStatus
     let onInstall: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Icon
-            Image(systemName: tool.icon)
-                .font(.title2)
-                .foregroundStyle(tool.swiftColor)
-                .frame(width: 32, height: 32)
+        HStack(spacing: 14) {
+            // Icon tile (App Store search style)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(tool.swiftColor.opacity(0.12))
+                    .frame(width: 48, height: 48)
+                Image(systemName: tool.icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(tool.swiftColor)
+            }
 
-            // Info
+            // Text stack
             VStack(alignment: .leading, spacing: 2) {
                 Text(tool.name)
                     .font(.headline)
+                    .lineLimit(1)
 
                 Text(tool.description)
                     .font(.caption)
@@ -29,51 +35,12 @@ struct ToolCardView: View {
 
             Spacer()
 
-            // Status indicator + action
-            statusBadge
+            actionBadge
         }
         .padding(.vertical, 4)
     }
 
-    @ViewBuilder
-    private var statusBadge: some View {
-        switch status {
-        case .installed:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.title3)
-                .help("Installed")
-
-        case .notInstalled:
-            Button("Install") {
-                onInstall()
-            }
-            .controlSize(.small)
-            .help("Install this tool")
-
-        case .installing, .checking:
-            ProgressView()
-                .controlSize(.small)
-                .help("Installation in progress")
-
-        case .error:
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .help("Installation failed")
-                Button("Retry") {
-                    onInstall()
-                }
-                .controlSize(.small)
-                .help("Retry installation")
-            }
-
-        case .unknown:
-            Image(systemName: "questionmark.circle")
-                .foregroundStyle(.secondary)
-                .help("Status unknown — refresh to check")
-        }
-    }
+    // MARK: - Status line (third row, only when meaningful)
 
     @ViewBuilder
     private var statusLine: some View {
@@ -84,7 +51,6 @@ struct ToolCardView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
-                    .truncationMode(.tail)
             }
         case .installing:
             Text("Installing…")
@@ -102,6 +68,50 @@ struct ToolCardView: View {
                 .truncationMode(.tail)
         case .notInstalled, .unknown:
             EmptyView()
+        }
+    }
+
+    // MARK: - Action badge (right side)
+
+    @ViewBuilder
+    private var actionBadge: some View {
+        switch status {
+        case .installed:
+            Label("Installed", systemImage: "checkmark")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.green)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.green.opacity(0.12), in: Capsule())
+
+        case .notInstalled:
+            Button("GET", action: onInstall)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.blue)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(.blue.opacity(0.1), in: Capsule())
+                .buttonStyle(.plain)
+
+        case .installing, .checking:
+            ProgressView()
+                .controlSize(.small)
+
+        case .error:
+            Button(action: onInstall) {
+                Label("Retry", systemImage: "exclamationmark")
+                    .font(.caption2.weight(.bold))
+            }
+            .foregroundStyle(.red)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.red.opacity(0.1), in: Capsule())
+            .buttonStyle(.plain)
+
+        case .unknown:
+            Image(systemName: "questionmark.circle")
+                .foregroundStyle(.tertiary)
+                .help("Status unknown — refresh to check")
         }
     }
 }
