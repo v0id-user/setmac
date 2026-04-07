@@ -44,10 +44,21 @@ uv run setmac configs apply   # Restore dotfiles on fresh Mac
 
 ## Requirements
 
-- macOS 26 (Tahoe) — for SwiftUI Liquid Glass
-- Xcode (for Swift SDK, not the IDE)
-- [uv](https://docs.astral.sh/uv/) — Python package manager
-- Python 3.12+
+### To build from source (developers)
+
+| Dependency | Min version | Notes |
+|---|---|---|
+| macOS | 26.0 (Tahoe) | Liquid Glass UI APIs |
+| Xcode Command Line Tools | any | Provides the Swift compiler — `xcode-select --install` |
+| Swift | 6.2+ | Bundled with Xcode CLT |
+| Homebrew | any | `brew install` for tools — [brew.sh](https://brew.sh) |
+| just | any | Command runner — `brew install just` |
+| uv | any | Python package manager — [astral.sh/uv](https://docs.astral.sh/uv/) |
+| Python | 3.11+ | Managed via uv |
+
+### To run the compiled app (end users)
+
+- macOS 26+ only — no other prerequisites. The app manages Homebrew and all tools itself.
 
 ## Admin password flow
 
@@ -133,8 +144,10 @@ You can also Control-click the app and choose `Open`. This is only a temporary w
 
 **Essentials**: Xcode CLT, Homebrew
 **CLI**: git, gh, neovim, tmux, fzf, bat, eza, fd, ripgrep, starship, lazygit, btop, fastfetch, yazi, tree-sitter, gnupg, openssh, imagemagick
-**Apps**: Cursor, Claude Code, Ghostty, Raycast, Hammerspoon, Rectangle, Karabiner Elements
-**Languages**: Go, Node, Python, LuaJIT, Bun, NVM
+**Apps**: Cursor, Claude Code, Ghostty, Raycast, Hammerspoon, Rectangle, Karabiner Elements, Docker Desktop, Lens, Warp, Wave, VS Code
+**Languages**: Go, Node.js, Python, LuaJIT, Bun, NVM
+**DevOps**: tfenv, Terraform, Terragrunt, kubectl, Helm, ArgoCD CLI, k9s, Ansible, Podman
+**Cloud**: AWS CLI, Azure CLI, Google Cloud SDK, OCI CLI, doctl, hcloud
 **Standalone**: Oh My Zsh, TPM, LazyVim, Pier
 
 ## License
