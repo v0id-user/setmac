@@ -441,13 +441,11 @@
       "icon": "server.rack",
       "icon_color": "green",
       "depends_on": ["homebrew"],
-      "versions": ["lts", "22", "20", "18"],
-      "default_version": "lts",
       "check": {
         "command": "command -v node",
         "version_command": "node --version 2>&1"
       },
-      "install": { "method": "brew_formula", "target": "node@{version}" }
+      "install": { "method": "brew_formula", "target": "node" }
     },
     {
       "id": "python",
@@ -457,13 +455,11 @@
       "icon": "chevron.left.forwardslash.chevron.right",
       "icon_color": "yellow",
       "depends_on": ["homebrew"],
-      "versions": ["3.14", "3.13", "3.12", "3.11"],
-      "default_version": "3.14",
       "check": {
         "command": "command -v python3",
         "version_command": "python3 --version 2>&1"
       },
-      "install": { "method": "brew_formula", "target": "python@{version}" }
+      "install": { "method": "brew_formula", "target": "python@3.14" }
     },
     {
       "id": "luajit",
@@ -621,15 +617,13 @@
       "icon": "cube.box",
       "icon_color": "purple",
       "depends_on": ["tfenv"],
-      "versions": ["latest", "1.11", "1.10", "1.9", "1.8"],
-      "default_version": "latest",
       "check": {
         "command": "command -v terraform",
         "version_command": "terraform version 2>&1 | head -1"
       },
       "install": {
         "method": "script",
-        "script": "tfenv install {version} && tfenv use {version}"
+        "script": "tfenv install latest && tfenv use latest"
       }
     },
     {

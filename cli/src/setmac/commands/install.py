@@ -11,8 +11,7 @@ from setmac.registry import Registry
 @click.argument("tool_id")
 @click.option("--category", "-c", is_flag=True, help="Treat TOOL_ID as a category name")
 @click.option("--check", is_flag=True, help="Only check status, don't install")
-@click.option("--version", "-v", default=None, help="Version to install (for versioned tools)")
-def install_cmd(tool_id, category, check, version):
+def install_cmd(tool_id, category, check):
     """Install a tool, category, or 'all'."""
     registry = Registry()
 
@@ -49,7 +48,7 @@ def install_cmd(tool_id, category, check, version):
         emit_error(tool_id, f"Unknown tool: {tool_id}")
         raise SystemExit(1)
 
-    # Install dependencies first (without version override), then the target with the version
+    # Install dependencies first
     ordered = registry.install_order([tool_id])
     for t in ordered:
-        run_tool(t, version=version if t.id == tool_id else None)
+        run_tool(t)

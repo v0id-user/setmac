@@ -24,8 +24,8 @@ struct CategoryDetailView: View {
                     ToolCardView(
                         tool: tool,
                         status: state.status(for: tool.id),
-                        onInstall: { version in
-                            Task { await install(tool.id, version: version) }
+                        onInstall: {
+                            Task { await install(tool.id) }
                         }
                     )
                 }
@@ -49,11 +49,11 @@ struct CategoryDetailView: View {
         .navigationTitle(category.displayName)
     }
 
-    private func install(_ toolId: String, version: String? = nil) async {
-        log.info("Installing tool: \(toolId)\(version.map { " v\($0)" } ?? "")")
+    private func install(_ toolId: String) async {
+        log.info("Installing tool: \(toolId)")
         isInstalling = true
         state.isRunning = true
-        for await msg in await bridge.install(toolId: toolId, version: version) {
+        for await msg in await bridge.install(toolId: toolId) {
             await processMessage(msg)
         }
         state.isRunning = false

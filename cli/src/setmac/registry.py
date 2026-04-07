@@ -43,8 +43,6 @@ class Tool:
     check: CheckSpec
     install: InstallSpec
     configs: list[ConfigSpec] = field(default_factory=list)
-    versions: list[str] = field(default_factory=list)
-    default_version: str | None = None
 
 
 def _parse_tool(data: dict) -> Tool:
@@ -80,8 +78,6 @@ def _parse_tool(data: dict) -> Tool:
             )
             for c in configs_data
         ],
-        versions=data.get("versions", []),
-        default_version=data.get("default_version"),
     )
 
 

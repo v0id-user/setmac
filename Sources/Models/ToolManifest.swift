@@ -21,14 +21,11 @@ struct ToolDefinition: Codable, Identifiable, Hashable {
     let check: CheckSpec?
     let install: InstallSpec
     let configs: [ConfigSpec]?
-    let versions: [String]?
-    let defaultVersion: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description, category, icon, install, check, configs, versions
+        case id, name, description, category, icon, install, check, configs
         case iconColor = "icon_color"
         case dependsOn = "depends_on"
-        case defaultVersion = "default_version"
     }
 
     static func == (lhs: ToolDefinition, rhs: ToolDefinition) -> Bool {
