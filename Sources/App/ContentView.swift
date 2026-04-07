@@ -8,14 +8,17 @@ struct ContentView: View {
     @State private var state = InstallState()
     @State private var bridge = CLIBridge()
     @State private var errorMessage: String?
+    @State private var searchText = ""
 
     var body: some View {
         NavigationSplitView {
             SidebarView(selection: $selectedItem, state: state)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
         } detail: {
-            if let item = selectedItem {
-                DetailView(item: item, state: state, bridge: bridge)
+            if !searchText.isEmpty {
+                SearchResultsView(query: searchText, state: state, bridge: bridge)
+            } else if let item = selectedItem {
+                DetailView(item: item, state: state, bridge: bridge, selection: $selectedItem)
             } else {
                 ContentUnavailableView(
                     "Select a Category",
@@ -24,6 +27,7 @@ struct ContentView: View {
                 )
             }
         }
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search tools…")
         .task {
             log.info("App launched, loading manifest...")
             state.manifest = ManifestLoader.load()

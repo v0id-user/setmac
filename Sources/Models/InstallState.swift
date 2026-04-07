@@ -156,4 +156,8 @@ final class InstallState {
     func configStatus(toolId: String, target: String) -> ConfigStatus? {
         configStatuses["\(toolId):\(target)"]
     }
+
+    func clearLogs() {
+        logLines.removeAll()
+    }
 }

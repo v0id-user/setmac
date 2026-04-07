@@ -18,30 +18,13 @@ struct ToolCardView: View {
                 Text(tool.name)
                     .font(.headline)
 
-                Group {
-                    switch status {
-                    case .installed(let version):
-                        if let v = version {
-                            Text(v)
-                        } else {
-                            Text("Installed")
-                        }
-                    case .notInstalled:
-                        Text("Not installed")
-                    case .installing:
-                        Text("Installing...")
-                    case .checking:
-                        Text("Checking...")
-                    case .error(let msg):
-                        Text(msg)
-                    case .unknown:
-                        Text(tool.description)
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                Text(tool.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                statusLine
             }
 
             Spacer()
@@ -89,6 +72,36 @@ struct ToolCardView: View {
             Image(systemName: "questionmark.circle")
                 .foregroundStyle(.secondary)
                 .help("Status unknown — refresh to check")
+        }
+    }
+
+    @ViewBuilder
+    private var statusLine: some View {
+        switch status {
+        case .installed(let version):
+            if let v = version {
+                Text(v)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        case .installing:
+            Text("Installing…")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+        case .checking:
+            Text("Checking…")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        case .error(let msg):
+            Text(msg)
+                .font(.caption2)
+                .foregroundStyle(.red)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        case .notInstalled, .unknown:
+            EmptyView()
         }
     }
 }

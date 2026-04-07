@@ -31,7 +31,7 @@ struct ConfigsView: View {
 
             if !state.logLines.isEmpty {
                 Divider()
-                LogOutputView(lines: state.logLines)
+                LogOutputView(lines: state.logLines, onClear: { state.clearLogs() })
                     .frame(maxHeight: 200)
             }
         }

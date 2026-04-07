@@ -3,6 +3,7 @@ import SwiftUI
 struct OverviewView: View {
     let state: InstallState
     let bridge: CLIBridge
+    @Binding var selection: SidebarItem?
     @State private var isInstalling = false
 
     var body: some View {
@@ -16,13 +17,15 @@ struct OverviewView: View {
                     GridItem(.adaptive(minimum: 200, maximum: 300), spacing: 16)
                 ], spacing: 16) {
                     ForEach(state.categories) { category in
-                        CategorySummaryCard(category: category, state: state)
+                        CategorySummaryCard(category: category, state: state) {
+                            selection = .category(category)
+                        }
                     }
                 }
 
                 // Log output
                 if !state.logLines.isEmpty {
-                    LogOutputView(lines: state.logLines)
+                    LogOutputView(lines: state.logLines, onClear: { state.clearLogs() })
                 }
             }
             .padding()
@@ -133,6 +136,7 @@ struct OverviewView: View {
 struct CategorySummaryCard: View {
     let category: ToolCategory
     let state: InstallState
+    let onTap: () -> Void
 
     private var tools: [ToolDefinition] {
         state.toolsForCategory(category)
@@ -142,25 +146,37 @@ struct CategorySummaryCard: View {
         tools.filter { state.status(for: $0.id).isInstalled }.count
     }
 
-    var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: category.icon)
-                        .foregroundStyle(category.color)
-                    Text(category.displayName)
-                        .font(.headline)
-                    Spacer()
-                    Text("\(installed)/\(tools.count)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+    private var hasErrors: Bool {
+        tools.contains { if case .error = state.status(for: $0.id) { return true }; return false }
+    }
 
-                ProgressView(value: Double(installed), total: Double(max(tools.count, 1)))
-                    .tint(installed == tools.count ? .green : .blue)
+    var body: some View {
+        Button(action: onTap) {
+            GroupBox {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: category.icon)
+                            .foregroundStyle(category.color)
+                        Text(category.displayName)
+                            .font(.headline)
+                        Spacer()
+                        if hasErrors {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                        Text("\(installed)/\(tools.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+
+                    ProgressView(value: Double(installed), total: Double(max(tools.count, 1)))
+                        .tint(installed == tools.count ? .green : hasErrors ? .red : .blue)
+                }
+                .padding(4)
             }
-            .padding(4)
         }
+        .buttonStyle(.plain)
     }
 }
