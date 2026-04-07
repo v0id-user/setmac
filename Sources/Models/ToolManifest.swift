@@ -93,6 +93,8 @@ enum ToolCategory: String, CaseIterable, Identifiable {
     case cliTools = "cli-tools"
     case applications
     case languages
+    case devops
+    case cloud
     case standalone
     case configs
 
@@ -104,6 +106,8 @@ enum ToolCategory: String, CaseIterable, Identifiable {
         case .cliTools: "CLI Tools"
         case .applications: "Applications"
         case .languages: "Languages"
+        case .devops: "DevOps"
+        case .cloud: "Cloud"
         case .standalone: "Standalone"
         case .configs: "Configs"
         }
@@ -115,6 +119,8 @@ enum ToolCategory: String, CaseIterable, Identifiable {
         case .cliTools: "terminal"
         case .applications: "macwindow"
         case .languages: "chevron.left.forwardslash.chevron.right"
+        case .devops: "server.rack"
+        case .cloud: "cloud.fill"
         case .standalone: "puzzlepiece.extension"
         case .configs: "gearshape.2"
         }
@@ -126,6 +132,8 @@ enum ToolCategory: String, CaseIterable, Identifiable {
         case .cliTools: .green
         case .applications: .purple
         case .languages: .orange
+        case .devops: .cyan
+        case .cloud: .indigo
         case .standalone: .teal
         case .configs: .gray
         }

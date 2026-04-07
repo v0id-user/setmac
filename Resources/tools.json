@@ -593,6 +593,288 @@
       "configs": [
         { "source": "~/.config/git/config", "target": "git/config" }
       ]
+    },
+
+    {
+      "id": "tfenv",
+      "name": "tfenv",
+      "description": "Terraform version manager",
+      "category": "devops",
+      "icon": "arrow.up.arrow.down.circle",
+      "icon_color": "purple",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v tfenv",
+        "version_command": "tfenv --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "tfenv" }
+    },
+    {
+      "id": "terraform",
+      "name": "Terraform",
+      "description": "Infrastructure as Code by HashiCorp",
+      "category": "devops",
+      "icon": "cube.box",
+      "icon_color": "purple",
+      "depends_on": ["tfenv"],
+      "check": {
+        "command": "command -v terraform",
+        "version_command": "terraform version 2>&1 | head -1"
+      },
+      "install": {
+        "method": "script",
+        "script": "tfenv install latest && tfenv use latest"
+      }
+    },
+    {
+      "id": "terragrunt",
+      "name": "Terragrunt",
+      "description": "Thin wrapper for Terraform with DRY configurations",
+      "category": "devops",
+      "icon": "square.stack.3d.up",
+      "icon_color": "indigo",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v terragrunt",
+        "version_command": "terragrunt --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "terragrunt" }
+    },
+    {
+      "id": "kubectl",
+      "name": "kubectl",
+      "description": "Kubernetes command-line tool",
+      "category": "devops",
+      "icon": "circle.grid.3x3",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v kubectl",
+        "version_command": "kubectl version --client 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "kubectl" }
+    },
+    {
+      "id": "helm",
+      "name": "Helm",
+      "description": "Kubernetes package manager",
+      "category": "devops",
+      "icon": "anchor",
+      "icon_color": "teal",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v helm",
+        "version_command": "helm version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "helm" }
+    },
+    {
+      "id": "argocd",
+      "name": "ArgoCD CLI",
+      "description": "GitOps continuous delivery tool for Kubernetes",
+      "category": "devops",
+      "icon": "arrow.triangle.2.circlepath",
+      "icon_color": "orange",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v argocd",
+        "version_command": "argocd version --client 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "argocd" }
+    },
+    {
+      "id": "k9s",
+      "name": "k9s",
+      "description": "Terminal UI for Kubernetes clusters",
+      "category": "devops",
+      "icon": "terminal.fill",
+      "icon_color": "green",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v k9s",
+        "version_command": "k9s version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "k9s" }
+    },
+    {
+      "id": "ansible",
+      "name": "Ansible",
+      "description": "IT automation and configuration management",
+      "category": "devops",
+      "icon": "gearshape.2",
+      "icon_color": "red",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v ansible",
+        "version_command": "ansible --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "ansible" }
+    },
+    {
+      "id": "podman",
+      "name": "Podman",
+      "description": "Daemonless container engine, Docker-compatible CLI",
+      "category": "devops",
+      "icon": "shippingbox",
+      "icon_color": "cyan",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v podman",
+        "version_command": "podman --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "podman" }
+    },
+
+    {
+      "id": "awscli",
+      "name": "AWS CLI",
+      "description": "Amazon Web Services command-line interface",
+      "category": "cloud",
+      "icon": "cloud",
+      "icon_color": "orange",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v aws",
+        "version_command": "aws --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "awscli" }
+    },
+    {
+      "id": "azure-cli",
+      "name": "Azure CLI",
+      "description": "Microsoft Azure command-line interface",
+      "category": "cloud",
+      "icon": "cloud.fill",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v az",
+        "version_command": "az --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_formula", "target": "azure-cli" }
+    },
+    {
+      "id": "gcloud",
+      "name": "Google Cloud SDK",
+      "description": "Google Cloud Platform command-line tools",
+      "category": "cloud",
+      "icon": "cloud.circle",
+      "icon_color": "red",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v gcloud",
+        "version_command": "gcloud --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_cask", "target": "google-cloud-sdk" }
+    },
+    {
+      "id": "oci-cli",
+      "name": "OCI CLI",
+      "description": "Oracle Cloud Infrastructure command-line interface",
+      "category": "cloud",
+      "icon": "circle.grid.2x2",
+      "icon_color": "red",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v oci",
+        "version_command": "oci --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "oci-cli" }
+    },
+    {
+      "id": "doctl",
+      "name": "doctl",
+      "description": "DigitalOcean command-line interface",
+      "category": "cloud",
+      "icon": "drop",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v doctl",
+        "version_command": "doctl version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "doctl" }
+    },
+    {
+      "id": "hcloud",
+      "name": "hcloud",
+      "description": "Hetzner Cloud command-line interface",
+      "category": "cloud",
+      "icon": "server.rack",
+      "icon_color": "red",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v hcloud",
+        "version_command": "hcloud version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "hcloud" }
+    },
+
+    {
+      "id": "docker-desktop",
+      "name": "Docker Desktop",
+      "description": "Container platform with GUI for macOS",
+      "category": "applications",
+      "icon": "shippingbox.fill",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Docker.app"
+      },
+      "install": { "method": "brew_cask", "target": "docker" }
+    },
+    {
+      "id": "lens",
+      "name": "Lens",
+      "description": "Kubernetes IDE — visual cluster management",
+      "category": "applications",
+      "icon": "eye",
+      "icon_color": "purple",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Lens.app"
+      },
+      "install": { "method": "brew_cask", "target": "lens" }
+    },
+    {
+      "id": "warp",
+      "name": "Warp",
+      "description": "AI-powered modern terminal",
+      "category": "applications",
+      "icon": "terminal",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Warp.app"
+      },
+      "install": { "method": "brew_cask", "target": "warp" }
+    },
+    {
+      "id": "wave",
+      "name": "Wave Terminal",
+      "description": "Open-source AI-integrated terminal",
+      "category": "applications",
+      "icon": "waveform",
+      "icon_color": "cyan",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Wave.app"
+      },
+      "install": { "method": "brew_cask", "target": "wave" }
+    },
+    {
+      "id": "vscode",
+      "name": "VS Code",
+      "description": "Visual Studio Code — extensible code editor",
+      "category": "applications",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "path": "/Applications/Visual Studio Code.app",
+        "version_command": "code --version 2>&1 | head -1"
+      },
+      "install": { "method": "brew_cask", "target": "visual-studio-code" }
     }
   ]
 }
