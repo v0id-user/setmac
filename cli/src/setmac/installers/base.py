@@ -138,17 +138,19 @@ def _get_version(tool: Tool) -> str | None:
 
 # ─── Install ──────────────────────────────────────────────────
 
-def install_tool(tool: Tool) -> bool:
+def install_tool(tool: Tool, version: str | None = None) -> bool:
     """Install a tool based on its install method. Returns True on success."""
     method = tool.install.method
+    # Resolve version: use provided, fall back to tool default
+    resolved = version or tool.default_version
 
     try:
         if method == "brew_formula":
-            return _brew_install(tool, cask=False)
+            return _brew_install(tool, cask=False, version=resolved)
         elif method == "brew_cask":
-            return _brew_install(tool, cask=True)
+            return _brew_install(tool, cask=True, version=resolved)
         elif method in ("script", "custom"):
-            return _script_install(tool)
+            return _script_install(tool, version=resolved)
         elif method == "config":
             emit_log("Config-only tool — use 'setmac configs apply'", tool=tool.id)
             return True
@@ -160,22 +162,22 @@ def install_tool(tool: Tool) -> bool:
         return False
 
 
-def run_tool(tool: Tool) -> None:
+def run_tool(tool: Tool, version: str | None = None) -> None:
     """Idempotent install: check first, install only if needed. Never crashes."""
     try:
-        installed, version = check_tool(tool)
+        installed, ver = check_tool(tool)
         if installed:
-            emit_status(tool.id, "installed", version=version)
+            emit_status(tool.id, "installed", version=ver)
             return
 
         emit_progress(tool.id, f"Installing {tool.name}...")
 
-        success = install_tool(tool)
+        success = install_tool(tool, version=version)
         if success:
             # Re-check to confirm and get version
-            rechecked, version = check_tool(tool)
+            rechecked, ver = check_tool(tool)
             if rechecked:
-                emit_complete(tool.id, version=version)
+                emit_complete(tool.id, version=ver)
             else:
                 # Install command succeeded but check still fails — likely needs shell restart
                 emit_complete(tool.id, version="(restart shell to verify)")
@@ -190,12 +192,28 @@ def run_tool(tool: Tool) -> None:
 
 # ─── Brew ─────────────────────────────────────────────────────
 
-def _brew_install(tool: Tool, cask: bool) -> bool:
+def _resolve_version_in_target(target: str, version: str | None) -> str:
+    """Substitute {version} in a brew target, or append @version for numbered versions."""
+    if not version:
+        # Strip any bare {version} placeholder if no version given
+        return target.replace("@{version}", "").replace("{version}", "")
+    if "{version}" in target:
+        # Explicit placeholder — substitute directly
+        return target.replace("{version}", version)
+    # No placeholder: append @version only for concrete version numbers, not "latest"/"lts"
+    if version not in ("latest", "lts"):
+        return f"{target}@{version}"
+    return target
+
+
+def _brew_install(tool: Tool, cask: bool, version: str | None = None) -> bool:
     """Install via Homebrew."""
     target = tool.install.target
     if not target:
         emit_error(tool.id, "No brew target specified in tools.json")
         return False
+
+    target = _resolve_version_in_target(target, version)
 
     cmd = ["brew", "install"]
     if cask:
@@ -222,12 +240,17 @@ def _brew_install(tool: Tool, cask: bool) -> bool:
 
 # ─── Script ───────────────────────────────────────────────────
 
-def _script_install(tool: Tool) -> bool:
+def _script_install(tool: Tool, version: str | None = None) -> bool:
     """Install via shell script or curl | bash."""
     if tool.install.url:
         script = f'curl -fsSL "{tool.install.url}" | bash'
     elif tool.install.script:
         script = tool.install.script
+        if version:
+            script = script.replace("{version}", version)
+        elif "{version}" in script:
+            # Fall back to "latest" if no version selected
+            script = script.replace("{version}", "latest")
     else:
         emit_error(tool.id, "No script or URL specified in tools.json")
         return False

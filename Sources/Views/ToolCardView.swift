@@ -3,7 +3,9 @@ import SwiftUI
 struct ToolCardView: View {
     let tool: ToolDefinition
     let status: ToolStatus
-    let onInstall: () -> Void
+    let onInstall: (String?) -> Void
+
+    @State private var selectedVersion: String = ""
 
     var body: some View {
         HStack(spacing: 12) {
@@ -50,6 +52,11 @@ struct ToolCardView: View {
             statusBadge
         }
         .padding(.vertical, 4)
+        .onAppear {
+            if selectedVersion.isEmpty, let def = tool.defaultVersion {
+                selectedVersion = def
+            }
+        }
     }
 
     @ViewBuilder
@@ -62,11 +69,25 @@ struct ToolCardView: View {
                 .help("Installed")
 
         case .notInstalled:
-            Button("Install") {
-                onInstall()
+            HStack(spacing: 6) {
+                if let versions = tool.versions, !versions.isEmpty {
+                    Picker("Version", selection: $selectedVersion) {
+                        ForEach(versions, id: \.self) { v in
+                            Text(v).tag(v)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                    .help("Select version to install")
+                }
+                Button("Install") {
+                    let version = tool.versions != nil ? selectedVersion : nil
+                    onInstall(version.flatMap { $0.isEmpty ? nil : $0 })
+                }
+                .controlSize(.small)
+                .help("Install this tool")
             }
-            .controlSize(.small)
-            .help("Install this tool")
 
         case .installing, .checking:
             ProgressView()
@@ -79,7 +100,8 @@ struct ToolCardView: View {
                     .foregroundStyle(.red)
                     .help("Installation failed")
                 Button("Retry") {
-                    onInstall()
+                    let version = tool.versions != nil ? selectedVersion : nil
+                    onInstall(version.flatMap { $0.isEmpty ? nil : $0 })
                 }
                 .controlSize(.small)
                 .help("Retry installation")

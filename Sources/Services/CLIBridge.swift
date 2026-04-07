@@ -272,8 +272,12 @@ actor CLIBridge {
         runCommand(["status"])
     }
 
-    func install(toolId: String) -> AsyncStream<CLIMessage> {
-        runCommand(["install", toolId])
+    func install(toolId: String, version: String? = nil) -> AsyncStream<CLIMessage> {
+        var args = ["install", toolId]
+        if let version {
+            args += ["--version", version]
+        }
+        return runCommand(args)
     }
 
     func installAll() -> AsyncStream<CLIMessage> {

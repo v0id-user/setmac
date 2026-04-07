@@ -16,8 +16,29 @@ dev:
     .build/debug/{{app_name}}
     -kill %1 2>/dev/null
 
+# Check all build-time dependencies are present and valid
+check-deps:
+    @command -v swift >/dev/null 2>&1 \
+        || (echo "✗ swift not found — install Xcode Command Line Tools: xcode-select --install" && exit 1)
+    @swift --version >/dev/null 2>&1 \
+        || (echo "✗ swift is not functional — check Xcode CLT installation" && exit 1)
+    @command -v uv >/dev/null 2>&1 \
+        || (echo "✗ uv not found — install with: curl -LsSf https://astral.sh/uv/install.sh | sh" && exit 1)
+    @command -v python3 >/dev/null 2>&1 \
+        || (echo "✗ python3 not found — install via Homebrew: brew install python@3.14" && exit 1)
+    @python3 -c "import sys; assert sys.version_info >= (3,11), 'python3.11+ required'" 2>/dev/null \
+        || (echo "✗ python3.11+ required (found $(python3 --version))" && exit 1)
+    @python3 -m json.tool Resources/tools.json >/dev/null 2>&1 \
+        || (echo "✗ Resources/tools.json is invalid JSON" && exit 1)
+    @python3 -m py_compile cli/src/setmac/registry.py cli/src/setmac/cli.py \
+        cli/src/setmac/installers/base.py cli/src/setmac/commands/install.py \
+        cli/src/setmac/commands/status.py cli/src/setmac/commands/configs.py \
+        2>/dev/null \
+        || (echo "✗ Python syntax error in CLI source — run: python3 -m py_compile <file>" && exit 1)
+    @echo "✓ All dependencies OK"
+
 # Build debug binary (incremental)
-build:
+build: check-deps
     swift build
 
 # Clean all build artifacts
