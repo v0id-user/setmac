@@ -130,7 +130,7 @@ actor CLIBridge {
                 process.arguments = args
             } else {
                 // Dev mode: run the venv script directly (no uv overhead, no hangs)
-                let cwd = FileManager.default.currentDirectoryPath
+                let cwd = devRepoRoot.path
                 let venvScript = "\(cwd)/cli/.venv/bin/setmac"
 
                 if FileManager.default.fileExists(atPath: venvScript) {

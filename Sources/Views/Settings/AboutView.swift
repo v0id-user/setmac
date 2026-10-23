@@ -30,7 +30,7 @@ struct AboutView: View {
 
             Section("Build Info") {
                 LabeledContent("Platform", value: "macOS Tahoe 26")
-                LabeledContent("Architecture", value: "arm64")
+                LabeledContent("Architecture", value: Self.architecture)
                 LabeledContent("UI", value: "SwiftUI + Liquid Glass")
                 LabeledContent("Backend", value: "Python CLI (uv)")
                 LabeledContent("Manifest", value: "tools.json")
@@ -38,5 +38,13 @@ struct AboutView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("About")
+    }
+
+    private static var architecture: String {
+        #if arch(arm64)
+        "arm64"
+        #else
+        "x86_64"
+        #endif
     }
 }
