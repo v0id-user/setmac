@@ -53,14 +53,10 @@ struct ContentView: View {
     }
 
     private func refreshStatuses() async {
-        state.isRunning = true
-        for await msg in await bridge.checkAllStatuses() {
-            if msg.type == "error" {
-                log.error("Status check error: \(msg.message ?? "unknown", privacy: .public)")
-                errorMessage = msg.message ?? "CLI failed to check tool statuses"
-            }
-            state.applyMessage(msg)
+        await state.run(["status"], with: bridge, timeout: 120)
+        if let error = state.lastError {
+            log.error("Status check error: \(error, privacy: .public)")
+            errorMessage = error
         }
-        state.isRunning = false
     }
 }

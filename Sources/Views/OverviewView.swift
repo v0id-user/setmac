@@ -3,7 +3,6 @@ import SwiftUI
 struct OverviewView: View {
     let state: InstallState
     let bridge: CLIBridge
-    @State private var isInstalling = false
 
     var body: some View {
         ScrollView {
@@ -30,16 +29,22 @@ struct OverviewView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Refresh", systemImage: "arrow.clockwise") {
-                    Task { await refresh() }
+                    Task { await state.run(["status"], with: bridge, timeout: 120) }
                 }
                 .disabled(state.isRunning)
                 .help("Refresh tool installation status")
 
-                Button("Install All", systemImage: "arrow.down.circle") {
-                    Task { await installAll() }
+                if state.isRunning {
+                    Button("Cancel", systemImage: "stop.circle") {
+                        Task { await bridge.cancel() }
+                    }
+                    .help("Stop the running command")
+                } else {
+                    Button("Install All", systemImage: "arrow.down.circle") {
+                        Task { await state.run(["install", "all"], with: bridge) }
+                    }
+                    .help("Install all tools, then apply dotfiles")
                 }
-                .disabled(isInstalling || state.installedCount == state.totalTools)
-                .help("Install all tools from the manifest")
             }
         }
         .navigationTitle("Overview")
@@ -80,10 +85,15 @@ struct OverviewView: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Checking tools...")
+                        Text(state.currentTool.map { "Installing \($0)…" } ?? "Working…")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                } else if let summary = state.lastSummary {
+                    Label(summary, systemImage: state.lastRunFailed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(state.lastRunFailed ? .orange : .green)
+                        .textSelection(.enabled)
                 }
             }
 
@@ -94,39 +104,6 @@ struct OverviewView: View {
     private var progress: Double {
         guard state.totalTools > 0 else { return 0 }
         return Double(state.installedCount) / Double(state.totalTools)
-    }
-
-    private func refresh() async {
-        state.isRunning = true
-        for await msg in await bridge.checkAllStatuses() {
-            state.applyMessage(msg)
-        }
-        state.isRunning = false
-    }
-
-    private func installAll() async {
-        isInstalling = true
-        state.isRunning = true
-        for await msg in await bridge.installAll() {
-            await processMessage(msg)
-        }
-        state.isRunning = false
-        isInstalling = false
-    }
-
-    private func processMessage(_ msg: CLIMessage) async {
-        if msg.type == "auth_required" {
-            let password = await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
-                state.pendingAuthRequest = AuthRequest(
-                    tool: msg.tool ?? "",
-                    message: msg.message ?? "Admin password required for installation"
-                )
-                state.pendingAuthContinuation = { cont.resume(returning: $0) }
-            }
-            await bridge.providePassword(password)
-        } else {
-            state.applyMessage(msg)
-        }
     }
 }
 

@@ -3,7 +3,12 @@ import os.log
 
 private let log = Logger(subsystem: "com.v0id.setmac", category: "CLIBridge")
 
-private let cliTimeout: TimeInterval = 120
+/// Status and config listings should finish quickly. Installs run as long as they need.
+private let quickCommandTimeout: TimeInterval = 120
+
+/// Exit code the CLI uses when an install run finished but some tools failed.
+/// The run already reported each failure and a summary, so it is not a crash.
+private let exitSomeFailed: Int32 = 2
 
 /// Thread-safe line buffer that parses JSON lines and yields them to an AsyncStream as they arrive.
 private final class StreamingLineParser: @unchecked Sendable {
@@ -29,16 +34,15 @@ private final class StreamingLineParser: @unchecked Sendable {
             let line = String(buffer[buffer.startIndex..<newlineRange.lowerBound])
             buffer.removeSubrange(buffer.startIndex...newlineRange.lowerBound)
 
-            guard !line.isEmpty,
-                  let data = line.data(using: .utf8),
-                  let msg = try? decoder.decode(CLIMessage.self, from: data)
-            else {
-                if !line.isEmpty {
-                    log.warning("Unparseable line: \(line, privacy: .public)")
-                }
-                continue
+            guard !line.isEmpty else { continue }
+            if let data = line.data(using: .utf8),
+               let msg = try? decoder.decode(CLIMessage.self, from: data) {
+                toYield.append(msg)
+            } else {
+                // Show stray output instead of hiding it in os.log.
+                log.warning("Unparseable line: \(line, privacy: .public)")
+                toYield.append(CLIMessage(log: line))
             }
-            toYield.append(msg)
         }
         lock.unlock()
 
@@ -93,6 +97,14 @@ private final class DataBuffer: @unchecked Sendable {
 
 actor CLIBridge {
     private let stdinHolder = StdinHandleHolder()
+    private var currentProcess: Process?
+
+    /// Stop the running command. The CLI forwards SIGTERM to its installer's process group.
+    func cancel() {
+        guard let process = currentProcess, process.isRunning else { return }
+        log.info("Cancelling CLI pid \(process.processIdentifier)")
+        process.terminate()
+    }
 
     func providePassword(_ password: String) {
         guard let handle = stdinHolder.handle else { return }
@@ -100,7 +112,7 @@ actor CLIBridge {
         handle.write(data)
     }
 
-    func runCommand(_ args: [String]) -> AsyncStream<CLIMessage> {
+    func runCommand(_ args: [String], timeout: TimeInterval? = quickCommandTimeout) -> AsyncStream<CLIMessage> {
         AsyncStream { continuation in
             let process = Process()
             let stdoutPipe = Pipe()
@@ -221,20 +233,15 @@ actor CLIBridge {
 
                 log.info("CLI exited with code \(proc.terminationStatus, privacy: .public)")
 
-                if proc.terminationStatus != 0 {
+                let cancelled = proc.terminationReason == .uncaughtSignal || proc.terminationStatus == 128 + SIGTERM
+                if cancelled {
+                    continuation.yield(CLIMessage(log: "Cancelled"))
+                } else if proc.terminationStatus != 0 && proc.terminationStatus != exitSomeFailed {
                     let stderrStr = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     let errorMsg = stderrStr.isEmpty
                         ? "CLI process exited with code \(proc.terminationStatus)"
                         : stderrStr
-                    continuation.yield(CLIMessage(
-                        type: "error",
-                        tool: nil,
-                        message: errorMsg,
-                        status: "error",
-                        version: nil,
-                        source: nil,
-                        target: nil
-                    ))
+                    continuation.yield(CLIMessage(type: "error", message: errorMsg))
                 }
 
                 continuation.finish()
@@ -245,42 +252,21 @@ actor CLIBridge {
                 log.info("CLI process launched (pid: \(process.processIdentifier))")
             } catch {
                 log.error("Failed to launch CLI: \(error.localizedDescription, privacy: .public)")
-                continuation.yield(CLIMessage(
-                    type: "error",
-                    tool: nil,
-                    message: "Failed to launch CLI: \(error.localizedDescription)",
-                    status: "error",
-                    version: nil,
-                    source: nil,
-                    target: nil
-                ))
+                continuation.yield(CLIMessage(type: "error", message: "Failed to launch CLI: \(error.localizedDescription)"))
                 continuation.finish()
                 return
             }
 
-            // Timeout — kill the process if it takes too long
-            DispatchQueue.global().asyncAfter(deadline: .now() + cliTimeout) {
-                if process.isRunning {
-                    log.error("CLI timed out after \(cliTimeout, privacy: .public)s, killing pid \(process.processIdentifier)")
-                    process.terminate()
+            currentProcess = process
+
+            if let timeout {
+                DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                    if process.isRunning {
+                        log.error("CLI timed out after \(timeout, privacy: .public)s, killing pid \(process.processIdentifier)")
+                        process.terminate()
+                    }
                 }
             }
         }
-    }
-
-    func checkAllStatuses() -> AsyncStream<CLIMessage> {
-        runCommand(["status"])
-    }
-
-    func install(toolId: String) -> AsyncStream<CLIMessage> {
-        runCommand(["install", toolId])
-    }
-
-    func installAll() -> AsyncStream<CLIMessage> {
-        runCommand(["install", "all"])
-    }
-
-    func installCategory(_ category: String) -> AsyncStream<CLIMessage> {
-        runCommand(["install", category, "--category"])
     }
 }
