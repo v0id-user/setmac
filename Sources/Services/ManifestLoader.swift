@@ -3,6 +3,19 @@ import os.log
 
 private let log = Logger(subsystem: "com.v0id.setmac", category: "ManifestLoader")
 
+/// Repo root in dev builds, found from this source file's location so it does not
+/// depend on the working directory (launching from Finder sets it to /).
+let devRepoRoot: URL = {
+    let fromSource = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()  // Services
+        .deletingLastPathComponent()  // Sources
+        .deletingLastPathComponent()  // repo
+    if FileManager.default.fileExists(atPath: fromSource.appendingPathComponent("Resources/tools.json").path) {
+        return fromSource
+    }
+    return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+}()
+
 enum ManifestLoader {
     static func load() -> ToolManifest? {
         for url in manifestCandidateURLs() {
@@ -25,7 +38,7 @@ enum ManifestLoader {
             urls.append(bundledManifest)
         }
 
-        let devManifest = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let devManifest = devRepoRoot
             .appendingPathComponent("Resources")
             .appendingPathComponent("tools.json")
         if FileManager.default.fileExists(atPath: devManifest.path) {
