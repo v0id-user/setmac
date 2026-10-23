@@ -21,11 +21,14 @@ struct ToolDefinition: Codable, Identifiable, Hashable {
     let check: CheckSpec?
     let install: InstallSpec
     let configs: [ConfigSpec]?
+    /// Manual step left after install, e.g. granting a permission.
+    let postInstall: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, category, icon, install, check, configs
         case iconColor = "icon_color"
         case dependsOn = "depends_on"
+        case postInstall = "post_install"
     }
 
     static func == (lhs: ToolDefinition, rhs: ToolDefinition) -> Bool {
@@ -95,6 +98,7 @@ enum ToolCategory: String, CaseIterable, Identifiable {
     case languages
     case standalone
     case configs
+    case system
 
     var id: String { rawValue }
 
@@ -106,6 +110,7 @@ enum ToolCategory: String, CaseIterable, Identifiable {
         case .languages: "Languages"
         case .standalone: "Standalone"
         case .configs: "Configs"
+        case .system: "macOS Settings"
         }
     }
 
@@ -117,6 +122,7 @@ enum ToolCategory: String, CaseIterable, Identifiable {
         case .languages: "chevron.left.forwardslash.chevron.right"
         case .standalone: "puzzlepiece.extension"
         case .configs: "gearshape.2"
+        case .system: "gearshape"
         }
     }
 
@@ -128,6 +134,7 @@ enum ToolCategory: String, CaseIterable, Identifiable {
         case .languages: .orange
         case .standalone: .teal
         case .configs: .gray
+        case .system: .secondary
         }
     }
 }
