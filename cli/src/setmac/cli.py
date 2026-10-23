@@ -6,6 +6,7 @@ from setmac import __version__
 from setmac.commands.install import install_cmd
 from setmac.commands.status import status_cmd
 from setmac.commands.configs import configs_cmd
+from setmac.commands.brewfile import brewfile_cmd
 
 
 @click.group()
@@ -18,3 +19,4 @@ def main():
 main.add_command(install_cmd, "install")
 main.add_command(status_cmd, "status")
 main.add_command(configs_cmd, "configs")
+main.add_command(brewfile_cmd, "brewfile")
