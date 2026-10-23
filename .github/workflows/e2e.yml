@@ -1,0 +1,111 @@
+name: End to End
+
+# Runs the packaged CLI's `install all` on a macOS runner stripped back to a
+# freshly formatted state: no Homebrew, no Command Line Tools, Xcode hidden,
+# then runs as a brand-new admin user whose sudo needs a password, so setmac's
+# password prompt is exercised and the home folder starts empty.
+on:
+  workflow_dispatch:
+  push:
+    branches: [e2e]
+
+defaults:
+  run:
+    # Plain `bash` adds -o pipefail, so a failing report piped into tee fails the step.
+    shell: bash
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fresh-mac:
+    name: Install all on a fresh Mac
+    runs-on: macos-26
+    timeout-minutes: 150
+    env:
+      E2E_USER: setmacuser
+      E2E_PASSWORD: setmac-e2e-password
+      # App Store installs need a signed-in Apple ID, which a runner can't have.
+      ALLOWED_FAILURES: keynote,pages,numbers
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Build the standalone CLI (before stripping the toolchain)
+        run: |
+          uv python install 3.12
+          bash scripts/build-cli.sh
+          cp cli/dist/setmac-cli "$RUNNER_TEMP/setmac-cli"
+          "$RUNNER_TEMP/setmac-cli" --version
+
+      - name: Strip the runner back to a fresh Mac
+        run: |
+          set -x
+          # Best effort; the next step checks the result.
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)" || true
+          sudo rm -rf /opt/homebrew /usr/local/Homebrew /usr/local/Caskroom /usr/local/bin/brew || true
+          sudo rm -rf /Library/Developer/CommandLineTools || true
+          for pkg in $(pkgutil --pkgs | grep -i CLTools); do sudo pkgutil --forget "$pkg" || true; done
+          for app in /Applications/Xcode*.app; do sudo mv "$app" "/Users/Shared/hidden-$(basename "$app")" || true; done
+          sudo xcode-select --reset || true
+          # A brand-new admin user: empty home, and sudo that asks for a password.
+          sudo sysadminctl -addUser "$E2E_USER" -fullName "setmac e2e" -password "$E2E_PASSWORD" -admin
+          sudo createhomedir -c -u "$E2E_USER" || true
+          # The image lets every admin sudo without a password. sudoers applies the
+          # last matching rule, so this file (sorted last) makes the new user type one.
+          echo "$E2E_USER ALL = (ALL) PASSWD: ALL" | sudo tee /etc/sudoers.d/zzz-setmac-e2e
+          sudo chmod 440 /etc/sudoers.d/zzz-setmac-e2e
+          sudo visudo -c
+          sudo mkdir -p /Users/Shared/setmac-e2e
+          sudo cp "$RUNNER_TEMP/setmac-cli" scripts/e2e_report.py /Users/Shared/setmac-e2e/
+          sudo chmod -R a+rwX /Users/Shared/setmac-e2e
+
+      - name: Confirm the machine looks fresh
+        id: fresh
+        run: |
+          as_user() { sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh PATH=/usr/bin:/bin:/usr/sbin:/sbin "$@"; }
+          if [ -e /opt/homebrew/bin/brew ] || [ -e /usr/local/bin/brew ]; then echo "brew is still installed"; exit 1; fi
+          if xcode-select -p; then echo "a developer directory is still selected"; exit 1; fi
+          if as_user sudo -n true 2>/dev/null; then echo "sudo works without a password for $E2E_USER"; exit 1; fi
+          as_user ls -A "/Users/$E2E_USER"
+          echo "Fresh: no brew, no CLT, empty home, sudo needs a password"
+
+      - name: setmac install all (first run)
+        if: steps.fresh.outcome == 'success'
+        run: |
+          echo "$E2E_PASSWORD" | sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh \
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin /Users/Shared/setmac-e2e/setmac-cli install all | tee first-run.jsonl || true
+
+      - name: Report first run
+        if: steps.fresh.outcome == 'success'
+        run: |
+          uv run --no-project --python 3.12 scripts/e2e_report.py first-run.jsonl \
+            --allow-failed "$ALLOWED_FAILURES" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: setmac install all (second run, should change nothing)
+        if: always() && steps.fresh.outcome == 'success'
+        run: |
+          echo "$E2E_PASSWORD" | sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh \
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin /Users/Shared/setmac-e2e/setmac-cli install all | tee second-run.jsonl || true
+          uv run --no-project --python 3.12 scripts/e2e_report.py second-run.jsonl \
+            --allow-failed "$ALLOWED_FAILURES" --expect-no-installs | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: A new login shell finds the tools
+        if: always() && steps.fresh.outcome == 'success'
+        run: |
+          sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh TERM=xterm \
+            zsh -lic 'for t in brew git node bun go uv nvim starship mise; do printf "%-9s %s\n" "$t" "$(command -v $t || echo MISSING)"; done' | tee shell.txt
+          if grep -q MISSING shell.txt; then exit 1; fi
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: |
+            first-run.jsonl
+            second-run.jsonl
+            shell.txt
