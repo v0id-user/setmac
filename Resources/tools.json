@@ -630,18 +630,17 @@
     {
       "id": "pier",
       "name": "Pier",
-      "description": "macOS app management CLI",
-      "category": "standalone",
-      "icon": "shippingbox",
+      "description": "Menu bar app that tracks running dev servers",
+      "category": "applications",
+      "icon": "server.rack",
       "icon_color": "brown",
-      "depends_on": ["xcode-clt", "git"],
-      "check": {
-        "command": "command -v pier"
-      },
+      "depends_on": [],
+      "check": { "path": "/Applications/Pier.app" },
       "install": {
         "method": "custom",
-        "script": "dir=$(mktemp -d) && git clone --depth 1 https://github.com/neethanwu/pier \"$dir/pier\" && make -C \"$dir/pier\" install; status=$?; rm -rf \"$dir\"; exit $status"
-      }
+        "script": "work=$(mktemp -d) && curl -fsSL -o \"$work/Pier.dmg\" https://github.com/neethanwu/pier/releases/latest/download/Pier.dmg && hdiutil attach -nobrowse -quiet -mountpoint \"$work/mnt\" \"$work/Pier.dmg\" && ditto \"$work/mnt/Pier.app\" /Applications/Pier.app; status=$?; hdiutil detach -quiet \"$work/mnt\" 2>/dev/null; rm -rf \"$work\"; exit $status"
+      },
+      "post_install": "Open Pier once; it lives in the menu bar."
     },
 
     {
