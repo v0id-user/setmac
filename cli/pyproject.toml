@@ -1,6 +1,8 @@
 [project]
 name = "setmac-cli"
-version = "1.1.1"
+# Fixed: release versions like 1.2.0-canary.1 are not valid PEP 440, so uv
+# rejects them here. The release version lives in [tool.setmac] and setmac/__init__.py.
+version = "0.0.0"
 description = "setmac — macOS setup automator"
 requires-python = ">=3.12"
 dependencies = [
