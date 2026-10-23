@@ -49,6 +49,13 @@ def emit_complete(tool: str, version: str | None = None):
     emit("complete", tool=tool, status="installed", version=version)
 
 
+def emit_summary(message: str, failed: list[str]):
+    """Final line of an install run. `failed` lists tool ids that failed or were skipped."""
+    line = json.dumps({"type": "summary", "message": message, "failed": failed})
+    with _lock:
+        print(line, flush=True)
+
+
 def emit_auth_required(tool: str, message: str):
     """Emit auth_required so the app can prompt for admin password."""
     emit("auth_required", tool=tool, message=message)
