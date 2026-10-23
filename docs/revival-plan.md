@@ -55,6 +55,11 @@ Small, safe fixes that make the "click Install" path work end to end.
 
 ## Phase 2: the magic part (build on proven tools)
 
+**Status: done, with two changes from the table below.**
+- **Homebrew Bundle:** not used to install. It has no machine-readable output, and the app needs a status per tool, so setmac keeps one `brew install` per tool. `setmac brewfile` exports a Brewfile, so `brew bundle` works as a fallback without the app.
+- **chezmoi:** skipped. Its strengths are templates and secrets across many machines; for one personal Mac, the built-in configs step (backups, skip unchanged, skip failed tools) does the job without a second tool to learn.
+- Shipped: mise for Node, Bun and Go; mas with Keynote, Pages and Numbers; a `defaults` method with this Mac's settings; post-install notes; Retry Failed; "(3/40)" progress.
+
 Keep `tools.json` as the one source of truth, and generate inputs for tools that already do idempotent installs:
 
 | Layer | Tool | Replaces |
@@ -74,6 +79,8 @@ Also in Phase 2:
 Skipped: nix-darwin (it would replace setmac rather than sit under it), topgrade (it only updates), Strap and Laptop (borrow their ideas, don't depend on them).
 
 ## Phase 3: release hygiene
+
+**Status: done.**
 
 - Bundle `configs/` into `setmac-cli`. Capture to `~/Library/Application Support/setmac`, not into the app.
 - Drop PyInstaller `--strip`. Use one Info.plist. Remove the unused `rich` dependency.

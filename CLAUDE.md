@@ -77,6 +77,9 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - Install commands have no timeout; status and config listings time out after 120 s. `cancel()` sends SIGTERM, and the CLI stops its installer's whole process group.
 - All views run commands through `InstallState.run`, which allows one command at a time and answers password requests.
 
+### Install methods
+`brew_formula`, `brew_cask`, `mise` (target like `node@lts`, checked with `mise where`), `mas` (App Store id), `defaults` (a `defaults` list of `{domain, key, type, value}`, written only when different), `script`/`custom`, and `config` (applied by the configs step).
+
 ### Install checks
 - `brew_formula` tools count as installed only when `brew list` shows them. A fresh Mac's stub `/usr/bin/git`, `python3` and `ssh` pass `command -v`, so `check.command` is ignored for formulae.
 - A tool whose dependency failed is skipped, not attempted. `install all` applies dotfiles last, skipping configs of failed tools.
