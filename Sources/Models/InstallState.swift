@@ -79,6 +79,13 @@ final class InstallState {
     /// Result line of the last install run, e.g. "12 installed, 25 already set up, 1 failed: pier".
     var lastSummary: String?
     var lastRunFailed = false
+    /// Tool ids that failed or were skipped in the last install run, for "Retry Failed".
+    var lastFailedIds: [String] = []
+    /// Tools installed in this session that still need a manual step.
+    var pendingSetupSteps: [ToolDefinition] {
+        manifest?.tools.filter { justInstalled.contains($0.id) && $0.postInstall != nil } ?? []
+    }
+    private var justInstalled: Set<String> = []
     /// Most recent error not tied to a tool (CLI crash, launch failure).
     var lastError: String?
 
@@ -138,6 +145,7 @@ final class InstallState {
         if isInstall {
             lastSummary = nil
             lastRunFailed = false
+            lastFailedIds = []
         }
         defer {
             isRunning = false
@@ -171,7 +179,8 @@ final class InstallState {
         }
         if msg.type == "summary" {
             lastSummary = msg.message
-            lastRunFailed = !(msg.failed ?? []).isEmpty
+            lastFailedIds = msg.failed ?? []
+            lastRunFailed = !lastFailedIds.isEmpty
         }
 
         if let tool = msg.tool {
@@ -186,10 +195,11 @@ final class InstallState {
                 }
             case "progress":
                 statuses[tool] = .installing
-                currentTool = manifest?.tools.first { $0.id == tool }?.name ?? tool
+                currentTool = msg.message ?? tool
                 log.info("\(tool, privacy: .public): installing — \(msg.message ?? "", privacy: .public)")
             case "complete":
                 statuses[tool] = .installed(version: msg.version)
+                justInstalled.insert(tool)
                 log.info("\(tool, privacy: .public): install complete (\(msg.version ?? "", privacy: .public))")
             case "error":
                 statuses[tool] = .error(msg.message ?? "Unknown error")
