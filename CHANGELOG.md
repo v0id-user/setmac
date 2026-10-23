@@ -2,6 +2,78 @@
 
 <!-- version list -->
 
+## v1.2.0-canary.1 (2026-10-23)
+
+### Bug Fixes
+
+- Capture configs outside the app bundle in packaged builds
+  ([`35f97e3`](https://github.com/v0id-user/setmac/commit/35f97e3482abafece82580c4269d990ce3db8167))
+
+- Find dev resources from the source location
+  ([`af06140`](https://github.com/v0id-user/setmac/commit/af061407396fa01f17de807f95b45dc9d83b6de3))
+
+- Install Command Line Tools without the GUI dialog
+  ([`7687dcf`](https://github.com/v0id-user/setmac/commit/7687dcfb48891835591d4776a287aee8aa9404f8))
+
+- Install Pier from its release DMG
+  ([`0769513`](https://github.com/v0id-user/setmac/commit/076951349faac5c00538a5a19efcd192a84695df))
+
+- Let app installs run to completion and add Cancel
+  ([`bf02b5f`](https://github.com/v0id-user/setmac/commit/bf02b5f129c8d814c50939274f6aeb2535d47c56))
+
+- Let brew pkg casks reach the admin password
+  ([`127bf6f`](https://github.com/v0id-user/setmac/commit/127bf6f0627bb698d703a411ba9d0fface3d6f0e))
+
+- Let canary and beta releases build
+  ([`acef73d`](https://github.com/v0id-user/setmac/commit/acef73dc45b4cd2865e1d513738d1606e58a258b))
+
+- Make CLI installs truthful, streamed and cancellable
+  ([`b1e65ed`](https://github.com/v0id-user/setmac/commit/b1e65edd49f5a7478a0a64e1fa2bdbf09b2391c5))
+
+- Put Homebrew on PATH in the bundled zshrc
+  ([`104483e`](https://github.com/v0id-user/setmac/commit/104483e44872314d114df70677b9456056c31d31))
+
+### Chores
+
+- Build Info.plist from Resources and drop PyInstaller strip
+  ([`9f1d3bc`](https://github.com/v0id-user/setmac/commit/9f1d3bc2b04a7e6c451c20c6fa5c05d613da03d5))
+
+### Continuous Integration
+
+- Add an end to end install test on a stripped macOS runner
+  ([`b8937f6`](https://github.com/v0id-user/setmac/commit/b8937f63f695ef9d0e1d920b0719b9b04be1e000))
+
+### Documentation
+
+- Add revival plan and update CLI protocol notes
+  ([`0a9ae39`](https://github.com/v0id-user/setmac/commit/0a9ae3937e4cbfff3edc516bebd3f23e0a70c2bb))
+
+- Describe phase 2 and 3 changes
+  ([`718097b`](https://github.com/v0id-user/setmac/commit/718097b602daa2a6665be0a057f5c577f25e928b))
+
+### Features
+
+- Add mise, mas and macOS settings install methods
+  ([`e9d745a`](https://github.com/v0id-user/setmac/commit/e9d745a5a58e418f8c57219a559eec60c6b0ff88))
+
+- Export the manifest as a Brewfile
+  ([`c849fc5`](https://github.com/v0id-user/setmac/commit/c849fc5e3ee6937e26e96ba6d857c60544d69374))
+
+- Manage runtimes with mise and add App Store apps and macOS settings
+  ([`a994846`](https://github.com/v0id-user/setmac/commit/a99484660a0e3952a72b911c08fd8bd9190d9bed))
+
+- Retry failed tools and list manual setup steps
+  ([`ca29ed8`](https://github.com/v0id-user/setmac/commit/ca29ed83d0c43828bd6a8d4a3b23920fd459835b))
+
+### Testing
+
+- Add CLI tests and run them in CI
+  ([`325000c`](https://github.com/v0id-user/setmac/commit/325000c54c3493e456521352cc435ce22ab8a210))
+
+- Run the askpass helper test only on macOS
+  ([`7c79125`](https://github.com/v0id-user/setmac/commit/7c79125cd4396113616a7edc95283089540b952a))
+
+
 ## v1.1.1 (2026-03-18)
 
 ### Bug Fixes
