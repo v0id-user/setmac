@@ -24,7 +24,7 @@ This doc is the shared human + AI reference for release work, packaging hotfixes
 
 ## Admin and config UX
 
-- **Admin prompt**: Tools with `requires_admin: true` in tools.json emit `auth_required`. The app shows a native password sheet and forwards the password via stdin. The CLI uses it once to prime `sudo`, then keeps the installer running as the normal user.
+- **Admin prompt**: The first `sudo` in an install run reaches the CLI through `SUDO_ASKPASS`, which emits `auth_required`. The app shows a native password sheet and forwards the password via stdin; the CLI verifies it and reuses it for the rest of the run. Installers stay unprivileged and call `sudo -A` where needed.
 - **Config visibility**: The Dotfiles screen shows real status (bundled, on disk, installed, missing) for each config. `configs list` emits `config_status` JSON lines.
 - **Navigation**: Sidebar "Dotfiles" is the config management screen; "Configs" category under Tools lists config-only tools.
 

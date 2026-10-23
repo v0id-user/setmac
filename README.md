@@ -4,13 +4,15 @@ Idempotent macOS setup automator. Reinstall all your dev tools, apps, and config
 
 ## What it does
 
-- Installs ~40 developer tools in dependency order (Xcode CLT -> Homebrew -> everything else)
-- Checks what's already installed and skips it (idempotent)
-- Captures and restores dotfiles/configs (zshrc, tmux, neovim, ghostty, etc.)
-- Native SwiftUI app with Liquid Glass UI on macOS Tahoe
-- Python CLI backend that does the actual work
-- **Admin prompts**: When installing tools that need sudo (e.g. Homebrew), the app shows a native password sheet instead of failing silently
-- **Config visibility**: The Dotfiles screen shows real status (bundled, on disk, installed, missing) for each config
+- Installs ~45 tools in dependency order: Command Line Tools (headless, no dialog), Rosetta, Homebrew, then everything else
+- Language runtimes (Node, Bun, Go) through [mise](https://mise.jdx.dev), App Store apps through [mas](https://github.com/mas-cli/mas)
+- Applies your macOS settings (Dock, Finder, Dark mode, trackpad) from `tools.json`, writing only what differs
+- Checks what's already installed and skips it, so a re-run resumes where the last one stopped
+- A failed tool skips the tools that depend on it; each run ends with a summary and a **Retry Failed** button
+- Restores dotfiles last, with timestamped backups in `~/.config/setmac-backup/`
+- Asks for the admin password once per run, in a native sheet, and shares it with every installer
+- Lists the manual steps left after installing (permissions to grant, App Store sign-in)
+- Native SwiftUI app with Liquid Glass UI on macOS Tahoe; Python CLI backend does the work
 
 ## Architecture
 
@@ -40,6 +42,7 @@ uv run setmac status          # Check what's installed
 uv run setmac install all     # Install everything
 uv run setmac configs capture # Save current dotfiles
 uv run setmac configs apply   # Restore dotfiles on fresh Mac
+uv run setmac brewfile        # Print a Brewfile, for plain `brew bundle`
 ```
 
 ## Requirements
@@ -51,23 +54,25 @@ uv run setmac configs apply   # Restore dotfiles on fresh Mac
 
 ## Admin password flow
 
-Tools that require admin access (e.g. Homebrew bootstrap) can set `"requires_admin": true` in their install spec. When the app runs such an install:
+Installers run without a terminal, so `sudo` uses the `SUDO_ASKPASS` helper the CLI sets up for each run:
 
-1. The CLI emits `auth_required` on the JSON line protocol
-2. The app shows a native password sheet
-3. The user enters their password and submits (or cancels)
-4. The password is sent to the CLI via stdin, used once with `sudo -S -v`, and the installer continues as the normal user
+1. The first time any installer needs admin, the CLI emits `auth_required`
+2. The app shows a native password sheet (the terminal prompts instead when run by hand)
+3. The CLI checks the password with `sudo -S -v`, asks again if it is wrong, and keeps it in memory for the rest of the run
+4. Every later `sudo` (Homebrew, `.pkg` casks, `softwareupdate`, `mas`) gets it from the helper over a private unix socket; it is never written to disk
 
-For terminal usage, the CLI prompts on stderr when stdin is a TTY. Otherwise it fails with a clear message.
+`"requires_admin": true` in tools.json marks tools that will ask.
 
 ## tools.json
 
 Every tool is defined in `Resources/tools.json` with:
 
 - **id** — unique identifier
-- **category** — essentials, cli-tools, applications, languages, standalone
-- **check** — how to verify it's installed (command, path, or version check)
-- **install** — how to install it (brew formula, brew cask, script, or custom)
+- **category** — essentials, cli-tools, applications, languages, standalone, configs, system
+- **check** — how to verify it's installed (command, path, or version check). Brew, mise, mas and defaults tools are checked by their own method.
+- **install** — `brew_formula`, `brew_cask`, `mise` (`node@lts`), `mas` (App Store id), `defaults`, `script`, or `custom`
+- **defaults** / **restart** — for the `defaults` method: `{domain, key, type, value}` settings and apps to restart after a change
+- **post_install** — a manual step to show after install
 - **depends_on** — tools that must be installed first
 - **configs** — associated dotfiles to capture/restore
 
