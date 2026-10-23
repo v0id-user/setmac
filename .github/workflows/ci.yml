@@ -33,3 +33,6 @@ jobs:
       - name: Verify registry loads
         working-directory: cli
         run: uv run python -c "from setmac.registry import Registry; r = Registry(); print(f'Loaded {len(r.tools)} tools')"
+      - name: Tests
+        working-directory: cli
+        run: uv run pytest -q
