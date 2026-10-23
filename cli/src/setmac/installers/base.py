@@ -1,357 +1,261 @@
-"""Base installer and generic dispatch based on tools.json install method."""
+"""Check and install tools based on their tools.json install method."""
 
 from __future__ import annotations
 
 import os
+import re
+import signal
 import subprocess
-import sys
+import threading
 import traceback
+from enum import Enum
 
-from setmac.output import (
-    emit_auth_required,
-    emit_complete,
-    emit_error,
-    emit_log,
-    emit_progress,
-    emit_status,
-)
+from setmac.output import emit_complete, emit_error, emit_log, emit_progress, emit_status
 from setmac.registry import Tool
+
+ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
+class Outcome(Enum):
+    ALREADY = "already"
+    INSTALLED = "installed"
+    FAILED = "failed"
 
 
 # ─── Shell environment ────────────────────────────────────────
 
-_cached_env: dict[str, str] | None = None
 
-
-def _shell_env() -> dict[str, str]:
-    """Build a rich PATH that covers all common install locations. Cached."""
-    global _cached_env
-    if _cached_env is not None:
-        return _cached_env
+def shell_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Environment for every subprocess: a PATH that covers all install locations."""
     env = os.environ.copy()
     home = os.path.expanduser("~")
-    extra_paths = [
+    paths = [
         "/opt/homebrew/bin",
         "/opt/homebrew/sbin",
         "/usr/local/bin",
         "/usr/local/sbin",
+        f"{home}/.local/bin",
+        f"{home}/.bun/bin",
+        f"{home}/.cargo/bin",
+        f"{home}/go/bin",
         "/usr/bin",
         "/bin",
         "/usr/sbin",
         "/sbin",
-        f"{home}/.bun/bin",
-        f"{home}/.cargo/bin",
-        f"{home}/.local/bin",
-        f"{home}/.nvm/versions/node/default/bin",
-        f"{home}/go/bin",
-        "/usr/local/go/bin",
     ]
-    current = env.get("PATH", "")
-    env["PATH"] = ":".join(extra_paths) + ":" + current
+    env["PATH"] = ":".join(paths + [env.get("PATH", "")])
     env["NONINTERACTIVE"] = "1"
     env["HOMEBREW_NO_AUTO_UPDATE"] = "1"
-    _cached_env = env
+    env["HOMEBREW_NO_ENV_HINTS"] = "1"
+    env.pop("PYTHONHOME", None)
+    if extra:
+        env.update(extra)
     return env
 
 
-def _run_quiet(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
-    """Run a shell command safely, never raising."""
+def _run_quiet(cmd: str | list[str], timeout: int = 15) -> subprocess.CompletedProcess:
+    """Run a command for checking, never raising."""
     try:
         return subprocess.run(
             cmd,
-            shell=True,
+            shell=isinstance(cmd, str),
             capture_output=True,
             text=True,
             timeout=timeout,
-            env=_shell_env(),
+            env=shell_env(),
+            stdin=subprocess.DEVNULL,
         )
-    except subprocess.TimeoutExpired:
-        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="timeout")
-    except Exception:
-        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="error")
+    except (subprocess.TimeoutExpired, OSError):
+        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="")
+
+
+# ─── Homebrew inventory ───────────────────────────────────────
+
+_brew_lock = threading.Lock()
+_brew_cache: dict[str, set[str]] | None = None
+
+
+def _brew_inventory() -> dict[str, set[str]]:
+    """Installed formulae and casks, read once and cached until invalidated."""
+    global _brew_cache
+    with _brew_lock:
+        if _brew_cache is None:
+            inventory: dict[str, set[str]] = {"formula": set(), "cask": set()}
+            for kind in ("formula", "cask"):
+                result = _run_quiet(["brew", "list", f"--{kind}", "--full-name", "-1"], timeout=60)
+                if result.returncode == 0:
+                    for name in result.stdout.split():
+                        inventory[kind].add(name)
+                        inventory[kind].add(name.rsplit("/", 1)[-1])
+            _brew_cache = inventory
+        return _brew_cache
+
+
+def invalidate_brew_cache() -> None:
+    global _brew_cache
+    with _brew_lock:
+        _brew_cache = None
 
 
 # ─── Check ────────────────────────────────────────────────────
 
+
 def check_tool(tool: Tool) -> tuple[bool, str | None]:
-    """Check if a tool is installed. Tries ALL methods (path + command) — any pass = installed."""
-    installed = False
+    """Return (installed, version).
 
-    # 1. Check by path (file or directory exists)
-    if tool.check.path:
-        expanded = os.path.expanduser(tool.check.path)
-        if os.path.exists(expanded):
-            installed = True
+    Brew formulae count as installed only when brew lists them. A fresh Mac
+    ships stub /usr/bin/git, python3 and ssh that pass `command -v` but only
+    open the Command Line Tools dialog, so `command -v` can't be trusted for them.
+    """
+    method = tool.install.method
+    if method == "brew_formula":
+        installed = tool.install.target in _brew_inventory()["formula"]
+    elif method == "brew_cask":
+        # A cask app may also have been installed by hand, outside brew.
+        installed = (
+            tool.install.target in _brew_inventory()["cask"]
+            or _path_exists(tool.check.path)
+            or _command_ok(tool.check.command)
+        )
+    else:
+        installed = _path_exists(tool.check.path) or _command_ok(tool.check.command)
 
-    # 2. Check by command (exit 0 = installed)
-    if tool.check.command and not installed:
-        result = _run_quiet(tool.check.command)
-        if result.returncode == 0:
-            installed = True
-
-    # 3. For brew tools, also try `command -v <binary>` as fallback
-    #    This catches tools installed via Xcode CLT, system, etc.
-    if not installed and tool.install.target:
-        binary = tool.install.target.split("@")[0]  # python@3.14 -> python
-        result = _run_quiet(f"command -v {binary}")
-        if result.returncode == 0:
-            installed = True
-
-    # 4. For cask apps, check common app paths
-    if not installed and tool.install.method == "brew_cask":
-        app_name = tool.name
-        for base in ["/Applications", os.path.expanduser("~/Applications")]:
-            if os.path.isdir(f"{base}/{app_name}.app"):
-                installed = True
-                break
-
-    # Get version string if installed
     version = _get_version(tool) if installed else None
-
     return installed, version
 
 
+def _path_exists(path: str | None) -> bool:
+    return bool(path) and os.path.exists(os.path.expanduser(path))
+
+
+def _command_ok(command: str | None) -> bool:
+    return bool(command) and _run_quiet(command).returncode == 0
+
+
 def _get_version(tool: Tool) -> str | None:
-    """Get version string, cleaning up ANSI codes and multi-line noise."""
     if not tool.check.version_command:
         return None
-
-    result = _run_quiet(tool.check.version_command, timeout=10)
+    result = _run_quiet(tool.check.version_command)
     if result.returncode != 0:
         return None
-
-    raw = result.stdout.strip()
-    if not raw:
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if not lines:
         return None
-
-    # Take first meaningful line, strip ANSI escape codes
-    import re
-    first_line = raw.split("\n")[0].strip()
-    clean = re.sub(r"\x1b\[[0-9;]*m", "", first_line)
-
-    # Truncate long versions
-    if len(clean) > 80:
-        clean = clean[:77] + "..."
-
-    return clean
+    clean = ANSI.sub("", lines[0])
+    return clean if len(clean) <= 80 else clean[:77] + "..."
 
 
-# ─── Install ──────────────────────────────────────────────────
+# ─── Running installers ───────────────────────────────────────
 
-def install_tool(tool: Tool) -> bool:
-    """Install a tool based on its install method. Returns True on success."""
-    method = tool.install.method
 
-    try:
-        if method == "brew_formula":
-            return _brew_install(tool, cask=False)
-        elif method == "brew_cask":
-            return _brew_install(tool, cask=True)
-        elif method in ("script", "custom"):
-            return _script_install(tool)
-        elif method == "config":
-            emit_log("Config-only tool — use 'setmac configs apply'", tool=tool.id)
-            return True
-        else:
-            emit_error(tool.id, f"Unknown install method: {method}")
+class Runner:
+    """Runs installer commands one at a time, streaming their output.
+
+    Holds the child process so a cancel (SIGTERM from the app) can stop the
+    whole process group instead of leaving brew running in the background.
+    """
+
+    def __init__(self, extra_env: dict[str, str] | None = None) -> None:
+        self.extra_env = extra_env or {}
+        self._proc: subprocess.Popen | None = None
+
+    def run(self, cmd: str | list[str], tool_id: str) -> bool:
+        shown = cmd if isinstance(cmd, str) else " ".join(cmd)
+        emit_log(f"$ {shown}", tool=tool_id)
+        try:
+            self._proc = subprocess.Popen(
+                cmd,
+                shell=isinstance(cmd, str),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                errors="replace",
+                bufsize=1,
+                env=shell_env(self.extra_env),
+                start_new_session=True,
+            )
+        except OSError as e:
+            emit_error(tool_id, f"Could not start installer: {e}")
             return False
-    except Exception as e:
-        emit_error(tool.id, f"Install failed: {e}")
-        return False
+
+        assert self._proc.stdout is not None
+        for raw in self._proc.stdout:
+            # Progress bars redraw with \r; keep only the final state of each line.
+            line = ANSI.sub("", raw.rstrip("\n").split("\r")[-1]).strip()
+            if line:
+                emit_log(line, tool=tool_id)
+        code = self._proc.wait()
+        self._proc = None
+        if code != 0:
+            emit_log(f"Exited with code {code}", tool=tool_id)
+        return code == 0
+
+    def terminate(self) -> None:
+        proc = self._proc
+        if proc is None or proc.poll() is not None:
+            return
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+            proc.wait(timeout=5)
+        except (ProcessLookupError, PermissionError):
+            pass
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
-def run_tool(tool: Tool) -> None:
-    """Idempotent install: check first, install only if needed. Never crashes."""
+def install_command(tool: Tool) -> str | list[str] | None:
+    """The command that installs a tool, or None if the manifest entry is incomplete."""
+    spec = tool.install
+    if spec.method in ("brew_formula", "brew_cask"):
+        if not spec.target:
+            return None
+        cmd = ["brew", "install"]
+        if spec.method == "brew_cask":
+            cmd.append("--cask")
+        return cmd + [spec.target]
+    if spec.method in ("script", "custom"):
+        if spec.url:
+            return f'/bin/bash -c "$(curl -fsSL {spec.url})"'
+        return spec.script
+    return None
+
+
+def run_tool(tool: Tool, runner: Runner) -> Outcome:
+    """Install a tool if missing, then confirm with a fresh check. Never raises."""
     try:
         installed, version = check_tool(tool)
         if installed:
             emit_status(tool.id, "installed", version=version)
-            return
+            return Outcome.ALREADY
+
+        if tool.install.method == "config":
+            # Config-only entries are applied by the configs step.
+            emit_status(tool.id, "not_installed")
+            return Outcome.ALREADY
+
+        cmd = install_command(tool)
+        if cmd is None:
+            emit_error(tool.id, f"tools.json has no install command for {tool.name}")
+            return Outcome.FAILED
 
         emit_progress(tool.id, f"Installing {tool.name}...")
+        ok = runner.run(cmd, tool.id)
+        invalidate_brew_cache()
+        if not ok:
+            emit_error(tool.id, f"Install of {tool.name} failed (see log)")
+            return Outcome.FAILED
 
-        success = install_tool(tool)
-        if success:
-            # Re-check to confirm and get version
-            rechecked, version = check_tool(tool)
-            if rechecked:
-                emit_complete(tool.id, version=version)
-            else:
-                # Install command succeeded but check still fails — likely needs shell restart
-                emit_complete(tool.id, version="(restart shell to verify)")
-        else:
-            emit_error(tool.id, f"Failed to install {tool.name}")
-
+        rechecked, version = check_tool(tool)
+        if not rechecked:
+            emit_error(tool.id, f"{tool.name} installer finished, but the check still fails")
+            return Outcome.FAILED
+        emit_complete(tool.id, version=version)
+        return Outcome.INSTALLED
     except Exception as e:
         emit_error(tool.id, f"Unexpected error: {e}")
-        # Log traceback for debugging but don't crash
         emit_log(traceback.format_exc(), tool=tool.id)
-
-
-# ─── Brew ─────────────────────────────────────────────────────
-
-def _brew_install(tool: Tool, cask: bool) -> bool:
-    """Install via Homebrew."""
-    target = tool.install.target
-    if not target:
-        emit_error(tool.id, "No brew target specified in tools.json")
-        return False
-
-    cmd = ["brew", "install"]
-    if cask:
-        cmd.append("--cask")
-    cmd.append(target)
-
-    emit_log(f"$ {' '.join(cmd)}", tool=tool.id)
-
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 min timeout for large installs
-            env=_shell_env(),
-        )
-    except subprocess.TimeoutExpired:
-        emit_error(tool.id, "brew install timed out after 10 minutes")
-        return False
-
-    _log_output(result, tool.id)
-    return result.returncode == 0
-
-
-# ─── Script ───────────────────────────────────────────────────
-
-def _script_install(tool: Tool) -> bool:
-    """Install via shell script or curl | bash."""
-    if tool.install.url:
-        script = f'curl -fsSL "{tool.install.url}" | bash'
-    elif tool.install.script:
-        script = tool.install.script
-    else:
-        emit_error(tool.id, "No script or URL specified in tools.json")
-        return False
-
-    emit_log(f"$ {script}", tool=tool.id)
-
-    env = _shell_env()
-    keepalive: subprocess.Popen | None = None
-    if tool.install.requires_admin:
-        password = _request_admin_password(tool)
-        if not password:
-            emit_error(tool.id, "Installation cancelled — no password provided")
-            return False
-
-        authenticated = _prime_sudo_credentials(tool, password, env)
-        if not authenticated:
-            return False
-        keepalive = _start_sudo_keepalive(env)
-
-    try:
-        result = subprocess.run(
-            script,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=600,
-            env=env,
-        )
-    except subprocess.TimeoutExpired:
-        emit_error(tool.id, "Script timed out after 10 minutes")
-        return False
-    finally:
-        _stop_sudo_keepalive(keepalive)
-        if tool.install.requires_admin:
-            _invalidate_sudo_credentials(env)
-
-    _log_output(result, tool.id)
-    return result.returncode == 0
-
-
-# ─── Helpers ──────────────────────────────────────────────────
-
-def _log_output(result: subprocess.CompletedProcess, tool_id: str) -> None:
-    """Log stdout/stderr lines, skipping empty ones."""
-    for stream in [result.stdout, result.stderr]:
-        if stream:
-            for line in stream.strip().split("\n"):
-                line = line.strip()
-                if line:
-                    emit_log(line, tool=tool_id)
-
-
-def _request_admin_password(tool: Tool) -> str:
-    """Request an admin password from the GUI or terminal."""
-    emit_auth_required(tool.id, "Admin password required for installation")
-    if sys.stdin.isatty():
-        print("Admin password required. Enter password: ", end="", file=sys.stderr, flush=True)
-
-    try:
-        line = sys.stdin.readline()
-    except Exception:
-        return ""
-
-    return line.strip() if line else ""
-
-
-def _prime_sudo_credentials(tool: Tool, password: str, env: dict[str, str]) -> bool:
-    """Validate the password in-memory and cache sudo for child processes."""
-    try:
-        result = subprocess.run(
-            ["sudo", "-S", "-k", "-v"],
-            input=password + "\n",
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=env,
-        )
-    except subprocess.TimeoutExpired:
-        emit_error(tool.id, "Admin authentication timed out")
-        return False
-
-    _log_output(result, tool.id)
-    if result.returncode != 0:
-        emit_error(tool.id, "Admin authentication failed")
-        return False
-
-    return True
-
-
-def _start_sudo_keepalive(env: dict[str, str]) -> subprocess.Popen | None:
-    """Keep sudo fresh while a long-running installer is active."""
-    try:
-        return subprocess.Popen(
-            ["/bin/sh", "-c", "while true; do sudo -n -v >/dev/null 2>&1 || exit 0; sleep 60; done"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            env=env,
-        )
-    except Exception:
-        return None
-
-
-def _stop_sudo_keepalive(process: subprocess.Popen | None) -> None:
-    """Best-effort cleanup for the keepalive helper."""
-    if process is None:
-        return
-    try:
-        process.terminate()
-        process.wait(timeout=2)
-    except subprocess.TimeoutExpired:
-        process.kill()
-    except Exception:
-        pass
-
-
-def _invalidate_sudo_credentials(env: dict[str, str]) -> None:
-    """Drop cached sudo credentials after privileged install flow ends."""
-    try:
-        subprocess.run(
-            ["sudo", "-k"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-            env=env,
-        )
-    except Exception:
-        pass
+        return Outcome.FAILED
