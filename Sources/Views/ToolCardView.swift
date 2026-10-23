@@ -58,10 +58,17 @@ struct ToolCardView: View {
     private var statusBadge: some View {
         switch status {
         case .installed:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.title3)
-                .help("Installed")
+            HStack(spacing: 6) {
+                if let note = tool.postInstall {
+                    Image(systemName: "hand.raised")
+                        .foregroundStyle(.orange)
+                        .help(note)
+                }
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.title3)
+                    .help("Installed")
+            }
 
         case .notInstalled:
             Button("Install") {

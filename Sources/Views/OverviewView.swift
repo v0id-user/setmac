@@ -19,6 +19,10 @@ struct OverviewView: View {
                     }
                 }
 
+                if !state.pendingSetupSteps.isEmpty {
+                    FinishSetupView(tools: state.pendingSetupSteps)
+                }
+
                 // Log output
                 if !state.logLines.isEmpty {
                     LogOutputView(lines: state.logLines)
@@ -40,6 +44,12 @@ struct OverviewView: View {
                     }
                     .help("Stop the running command")
                 } else {
+                    if !state.lastFailedIds.isEmpty {
+                        Button("Retry Failed", systemImage: "arrow.counterclockwise") {
+                            Task { await state.run(["install"] + state.lastFailedIds, with: bridge) }
+                        }
+                        .help("Install only the tools that failed or were skipped")
+                    }
                     Button("Install All", systemImage: "arrow.down.circle") {
                         Task { await state.run(["install", "all"], with: bridge) }
                     }
@@ -85,7 +95,7 @@ struct OverviewView: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text(state.currentTool.map { "Installing \($0)…" } ?? "Working…")
+                        Text(state.currentTool ?? "Working…")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -137,6 +147,35 @@ struct CategorySummaryCard: View {
                 ProgressView(value: Double(installed), total: Double(max(tools.count, 1)))
                     .tint(installed == tools.count ? .green : .blue)
             }
+            .padding(4)
+        }
+    }
+}
+
+/// Manual steps left by tools installed in this session.
+struct FinishSetupView: View {
+    let tools: [ToolDefinition]
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Finish setup by hand", systemImage: "hand.raised")
+                    .font(.headline)
+                ForEach(tools) { tool in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: tool.icon)
+                            .foregroundStyle(tool.swiftColor)
+                            .frame(width: 16)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tool.name).fontWeight(.medium)
+                            Text(tool.postInstall ?? "")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)
         }
     }

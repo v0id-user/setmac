@@ -18,33 +18,36 @@ EXIT_SOME_FAILED = 2
 
 
 @click.command("install")
-@click.argument("tool_id")
+@click.argument("tool_ids", nargs=-1, required=True)
 @click.option("--category", "-c", is_flag=True, help="Treat TOOL_ID as a category name")
 @click.option("--check", is_flag=True, help="Only check status, don't install")
 @click.option("--no-configs", is_flag=True, help="With 'all', skip applying dotfiles at the end")
 @click.pass_context
-def install_cmd(ctx: click.Context, tool_id: str, category: bool, check: bool, no_configs: bool):
-    """Install a tool, a category, or 'all'."""
+def install_cmd(ctx: click.Context, tool_ids: tuple[str, ...], category: bool, check: bool, no_configs: bool):
+    """Install tools by id, a category (with -c), or 'all'."""
+    everything = tool_ids == ("all",)
     if check:
-        ctx.invoke(status_cmd, tool_id=None if tool_id == "all" else tool_id)
+        for tid in [None] if everything else tool_ids:
+            ctx.invoke(status_cmd, tool_id=tid)
         return
 
     registry = Registry()
-    if tool_id == "all":
+    if everything:
         tools = registry.install_order()
     elif category:
-        members = registry.by_category(tool_id)
+        members = [t for name in tool_ids for t in registry.by_category(name)]
         if not members:
-            emit_error(tool_id, f"No tools found in category: {tool_id}")
+            emit_error(tool_ids[0], f"No tools found in category: {', '.join(tool_ids)}")
             raise SystemExit(1)
         tools = registry.install_order([t.id for t in members])
     else:
-        if not registry.get(tool_id):
-            emit_error(tool_id, f"Unknown tool: {tool_id}")
+        unknown = [tid for tid in tool_ids if not registry.get(tid)]
+        if unknown:
+            emit_error(unknown[0], f"Unknown tool: {', '.join(unknown)}")
             raise SystemExit(1)
-        tools = registry.install_order([tool_id])
+        tools = registry.install_order(list(tool_ids))
 
-    failed = install_tools(tools, registry, apply_dotfiles=tool_id == "all" and not no_configs)
+    failed = install_tools(tools, registry, apply_dotfiles=everything and not no_configs)
     if failed:
         raise SystemExit(EXIT_SOME_FAILED)
 
@@ -65,6 +68,7 @@ def install_tools(tools: list[Tool], registry: Registry, apply_dotfiles: bool) -
 
     counts = {outcome: 0 for outcome in Outcome}
     failed: list[str] = []
+    next_steps: list[str] = []
     emit_log(f"Installing {len(tools)} tool(s) in dependency order...")
     try:
         for index, tool in enumerate(tools, start=1):
@@ -75,15 +79,22 @@ def install_tools(tools: list[Tool], registry: Registry, apply_dotfiles: bool) -
                 emit_error(tool.id, f"Skipped: needs {names}, which did not install")
                 failed.append(tool.id)
                 continue
-            outcome = run_tool(tool, runner)
+            outcome = run_tool(tool, runner, position=(index, len(tools)))
             counts[outcome] += 1
             if outcome is Outcome.FAILED:
                 failed.append(tool.id)
+            elif outcome is Outcome.INSTALLED and tool.post_install:
+                next_steps.append(f"{tool.name}: {tool.post_install}")
 
         if apply_dotfiles:
             apply_configs(registry, skip_tools=set(failed))
     finally:
         askpass.close()
+
+    if next_steps:
+        emit_log("Finish setup by hand:")
+        for step in next_steps:
+            emit_log(f"  • {step}")
 
     summary = f"{counts[Outcome.INSTALLED]} installed, {counts[Outcome.ALREADY]} already set up"
     if failed:
