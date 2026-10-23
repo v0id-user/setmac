@@ -4,6 +4,7 @@ struct ToolCardView: View {
     let tool: ToolDefinition
     let status: ToolStatus
     let onInstall: () -> Void
+    var disabled = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -34,6 +35,7 @@ struct ToolCardView: View {
                         Text("Checking...")
                     case .error(let msg):
                         Text(msg)
+                            .help(msg)
                     case .unknown:
                         Text(tool.description)
                     }
@@ -66,6 +68,7 @@ struct ToolCardView: View {
                 onInstall()
             }
             .controlSize(.small)
+            .disabled(disabled)
             .help("Install this tool")
 
         case .installing, .checking:
@@ -82,6 +85,7 @@ struct ToolCardView: View {
                     onInstall()
                 }
                 .controlSize(.small)
+                .disabled(disabled)
                 .help("Retry installation")
             }
 

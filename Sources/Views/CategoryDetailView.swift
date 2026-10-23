@@ -1,13 +1,8 @@
 import SwiftUI
-import os.log
-
-private let log = Logger(subsystem: "com.v0id.setmac", category: "CategoryDetail")
-
 struct CategoryDetailView: View {
     let category: ToolCategory
     let state: InstallState
     let bridge: CLIBridge
-    @State private var isInstalling = false
 
     private var tools: [ToolDefinition] {
         state.toolsForCategory(category)
@@ -25,8 +20,9 @@ struct CategoryDetailView: View {
                         tool: tool,
                         status: state.status(for: tool.id),
                         onInstall: {
-                            Task { await install(tool.id) }
-                        }
+                            Task { await state.run(["install", tool.id], with: bridge) }
+                        },
+                        disabled: state.isRunning
                     )
                 }
             }
@@ -40,51 +36,12 @@ struct CategoryDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Install All", systemImage: "arrow.down.circle") {
-                    Task { await installCategory() }
+                    Task { await state.run(["install", category.rawValue, "--category"], with: bridge) }
                 }
-                .disabled(isInstalling || allInstalled)
+                .disabled(state.isRunning || allInstalled)
                 .help("Install all tools in this category")
             }
         }
         .navigationTitle(category.displayName)
-    }
-
-    private func install(_ toolId: String) async {
-        log.info("Installing tool: \(toolId)")
-        isInstalling = true
-        state.isRunning = true
-        for await msg in await bridge.install(toolId: toolId) {
-            await processMessage(msg)
-        }
-        state.isRunning = false
-        isInstalling = false
-        log.info("Install finished for: \(toolId)")
-    }
-
-    private func installCategory() async {
-        log.info("Installing category: \(category.rawValue)")
-        isInstalling = true
-        state.isRunning = true
-        for await msg in await bridge.installCategory(category.rawValue) {
-            await processMessage(msg)
-        }
-        state.isRunning = false
-        isInstalling = false
-        log.info("Category install finished: \(category.rawValue)")
-    }
-
-    private func processMessage(_ msg: CLIMessage) async {
-        if msg.type == "auth_required" {
-            let password = await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
-                state.pendingAuthRequest = AuthRequest(
-                    tool: msg.tool ?? "",
-                    message: msg.message ?? "Admin password required for installation"
-                )
-                state.pendingAuthContinuation = { cont.resume(returning: $0) }
-            }
-            await bridge.providePassword(password)
-        } else {
-            state.applyMessage(msg)
-        }
     }
 }

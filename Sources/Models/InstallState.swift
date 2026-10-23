@@ -45,12 +45,25 @@ enum ConfigStatus: String, Codable {
 
 struct CLIMessage: Codable {
     let type: String
-    let tool: String?
-    let message: String?
-    let status: String?
-    let version: String?
-    let source: String?
-    let target: String?
+    var tool: String? = nil
+    var message: String? = nil
+    var status: String? = nil
+    var version: String? = nil
+    var source: String? = nil
+    var target: String? = nil
+    /// Tool ids that failed or were skipped, on `summary` messages.
+    var failed: [String]? = nil
+
+    /// A plain log line, for CLI output that is not part of the protocol.
+    init(log message: String) {
+        self.type = "log"
+        self.message = message
+    }
+
+    init(type: String, message: String) {
+        self.type = type
+        self.message = message
+    }
 }
 
 // MARK: - Observable state
@@ -61,6 +74,13 @@ final class InstallState {
     var statuses: [String: ToolStatus] = [:]
     var logLines: [LogLine] = []
     var isRunning = false
+    /// Tool currently being installed, for the progress header.
+    var currentTool: String?
+    /// Result line of the last install run, e.g. "12 installed, 25 already set up, 1 failed: pier".
+    var lastSummary: String?
+    var lastRunFailed = false
+    /// Most recent error not tied to a tool (CLI crash, launch failure).
+    var lastError: String?
 
     /// Shown when CLI emits auth_required; user enters password in sheet.
     var pendingAuthRequest: AuthRequest?
@@ -104,8 +124,56 @@ final class InstallState {
         statuses.values.filter(\.isInstalled).count
     }
 
+    /// Run a CLI command, applying its output and answering password requests.
+    /// Only one command runs at a time; a second call while busy is ignored.
+    @MainActor
+    func run(_ args: [String], with bridge: CLIBridge, timeout: TimeInterval? = nil) async {
+        guard !isRunning else {
+            log.warning("Ignoring \(args.joined(separator: " "), privacy: .public): a command is already running")
+            return
+        }
+        isRunning = true
+        lastError = nil
+        let isInstall = args.first == "install"
+        if isInstall {
+            lastSummary = nil
+            lastRunFailed = false
+        }
+        defer {
+            isRunning = false
+            currentTool = nil
+        }
+        for await msg in await bridge.runCommand(args, timeout: timeout) {
+            if msg.type == "auth_required" {
+                let password = await requestPassword(tool: msg.tool, message: msg.message)
+                await bridge.providePassword(password)
+            } else {
+                applyMessage(msg)
+            }
+        }
+    }
+
+    @MainActor
+    private func requestPassword(tool: String?, message: String?) async -> String {
+        await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
+            pendingAuthRequest = AuthRequest(
+                tool: tool ?? "",
+                message: message ?? "Admin password required for installation"
+            )
+            pendingAuthContinuation = { cont.resume(returning: $0) }
+        }
+    }
+
     @MainActor
     func applyMessage(_ msg: CLIMessage) {
+        if msg.type == "error" && msg.tool == nil {
+            lastError = msg.message
+        }
+        if msg.type == "summary" {
+            lastSummary = msg.message
+            lastRunFailed = !(msg.failed ?? []).isEmpty
+        }
+
         if let tool = msg.tool {
             switch msg.type {
             case "status":
@@ -118,6 +186,7 @@ final class InstallState {
                 }
             case "progress":
                 statuses[tool] = .installing
+                currentTool = manifest?.tools.first { $0.id == tool }?.name ?? tool
                 log.info("\(tool, privacy: .public): installing — \(msg.message ?? "", privacy: .public)")
             case "complete":
                 statuses[tool] = .installed(version: msg.version)
