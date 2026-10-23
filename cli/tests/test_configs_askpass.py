@@ -1,5 +1,8 @@
 import json
 import subprocess
+import sys
+
+import pytest
 
 from setmac import askpass
 from setmac.commands import configs
@@ -50,6 +53,7 @@ def test_apply_skips_configs_of_failed_tools(tmp_path, monkeypatch):
     assert not (home / ".zshrc").exists()
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="the askpass helper uses macOS nc -U")
 def test_askpass_helper_returns_verified_password(monkeypatch):
     prompts = []
     monkeypatch.setattr(askpass, "_read_password", lambda tool, msg: prompts.append(msg) or ["bad", "good"][len(prompts) - 1])
