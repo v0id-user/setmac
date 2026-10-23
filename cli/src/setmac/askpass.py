@@ -13,6 +13,7 @@ app's password sheet, or the terminal). The password is checked with
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import socket
 import stat
@@ -25,8 +26,11 @@ from setmac.output import emit_auth_required, emit_log
 
 MAX_ATTEMPTS = 3
 
+# The socket path is written into the script, not passed in the environment:
+# brew runs sudo with a scrubbed environment that keeps SUDO_ASKPASS but drops
+# everything else, so a variable would be empty by the time the helper runs.
 _HELPER = """#!/bin/sh
-exec /usr/bin/nc -U "$SETMAC_ASKPASS_SOCKET"
+exec /usr/bin/nc -U {socket}
 """
 
 
@@ -41,7 +45,7 @@ class AskpassServer:
         self.socket_path = os.path.join(self._dir, "sock")
         self.helper_path = os.path.join(self._dir, "askpass")
         with open(self.helper_path, "w") as f:
-            f.write(_HELPER)
+            f.write(_HELPER.format(socket=shlex.quote(self.socket_path)))
         os.chmod(self.helper_path, stat.S_IRWXU)
 
         self._server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -52,7 +56,7 @@ class AskpassServer:
         self._thread.start()
 
     def env(self) -> dict[str, str]:
-        return {"SUDO_ASKPASS": self.helper_path, "SETMAC_ASKPASS_SOCKET": self.socket_path}
+        return {"SUDO_ASKPASS": self.helper_path}
 
     def password(self, tool: str | None = None) -> str | None:
         """Return a verified password, prompting the user if needed. None if cancelled."""
