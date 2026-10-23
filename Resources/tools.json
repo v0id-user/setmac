@@ -13,12 +13,30 @@
       "icon_color": "blue",
       "depends_on": [],
       "check": {
-        "command": "xcode-select -p 2>/dev/null",
-        "version_command": "xcode-select --version 2>&1 | head -1"
+        "command": "xcode-select -p >/dev/null 2>&1 && test -x \"$(xcode-select -p)/usr/bin/git\"",
+        "version_command": "pkgutil --pkg-info=com.apple.pkg.CLTools_Executables 2>/dev/null | sed -n 's/^version: //p'"
       },
       "install": {
         "method": "script",
-        "script": "xcode-select --install"
+        "script": "set -e\nif xcode-select -p >/dev/null 2>&1; then exit 0; fi\n# Ask softwareupdate for the CLT package directly, which avoids the GUI dialog.\nmarker=/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress\ntouch \"$marker\"\nlabel=$(softwareupdate -l 2>/dev/null | sed -n 's/^.*\\* Label: \\(Command Line Tools.*\\)$/\\1/p' | sort -V | tail -1)\nif [ -n \"$label\" ]; then\n  echo \"Installing $label\"\n  sudo -A softwareupdate -i \"$label\" --verbose\n  rm -f \"$marker\"\nelse\n  rm -f \"$marker\"\n  echo \"softwareupdate has no CLT package; opening Apple's installer. Click Install in the dialog.\"\n  xcode-select --install || true\n  waited=0\n  until xcode-select -p >/dev/null 2>&1; do\n    sleep 10; waited=$((waited + 10))\n    [ \"$waited\" -lt 3600 ] || { echo \"Gave up waiting for Command Line Tools\"; exit 1; }\n  done\nfi\nxcode-select -p",
+        "requires_admin": true
+      }
+    },
+    {
+      "id": "rosetta",
+      "name": "Rosetta 2",
+      "description": "Runs Intel-only apps and binaries on Apple Silicon",
+      "category": "essentials",
+      "icon": "cpu",
+      "icon_color": "gray",
+      "depends_on": [],
+      "check": {
+        "command": "[ \"$(uname -m)\" != arm64 ] || /usr/bin/pgrep -q oahd || [ -e /Library/Apple/usr/share/rosetta/rosetta ]"
+      },
+      "install": {
+        "method": "script",
+        "script": "sudo -A softwareupdate --install-rosetta --agree-to-license",
+        "requires_admin": true
       }
     },
     {
@@ -462,6 +480,20 @@
       "install": { "method": "brew_formula", "target": "python@3.14" }
     },
     {
+      "id": "uv",
+      "name": "uv",
+      "description": "Fast Python package and project manager",
+      "category": "languages",
+      "icon": "shippingbox",
+      "icon_color": "purple",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v uv",
+        "version_command": "uv --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "uv" }
+    },
+    {
       "id": "luajit",
       "name": "LuaJIT",
       "description": "Just-In-Time Compiler for Lua",
@@ -493,22 +525,6 @@
         "script": "curl -fsSL https://bun.sh/install | bash"
       }
     },
-    {
-      "id": "nvm",
-      "name": "NVM",
-      "description": "Node Version Manager",
-      "category": "languages",
-      "icon": "arrow.up.arrow.down.circle",
-      "icon_color": "green",
-      "depends_on": [],
-      "check": {
-        "path": "~/.nvm/nvm.sh"
-      },
-      "install": {
-        "method": "script",
-        "url": "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh"
-      }
-    },
 
     {
       "id": "ohmyzsh",
@@ -517,13 +533,13 @@
       "category": "standalone",
       "icon": "terminal.fill",
       "icon_color": "green",
-      "depends_on": [],
+      "depends_on": ["git"],
       "check": {
         "path": "~/.oh-my-zsh"
       },
       "install": {
         "method": "script",
-        "script": "RUNZSH=no KEEP_ZSHRC=yes sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+        "script": "RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
       },
       "configs": [
         { "source": "~/.zshrc", "target": "zshrc" }
@@ -536,7 +552,7 @@
       "category": "standalone",
       "icon": "puzzlepiece.extension",
       "icon_color": "green",
-      "depends_on": ["tmux"],
+      "depends_on": ["tmux", "git"],
       "check": {
         "path": "~/.tmux/plugins/tpm"
       },
@@ -546,35 +562,19 @@
       }
     },
     {
-      "id": "lazyvim",
-      "name": "LazyVim",
-      "description": "Neovim config with lazy.nvim plugin manager",
-      "category": "standalone",
-      "icon": "text.cursor",
-      "icon_color": "blue",
-      "depends_on": ["neovim", "git"],
-      "check": {
-        "path": "~/.config/nvim/lazyvim.json"
-      },
-      "install": {
-        "method": "custom",
-        "script": "git clone https://github.com/LazyVim/starter ~/.config/nvim && rm -rf ~/.config/nvim/.git"
-      }
-    },
-    {
       "id": "pier",
       "name": "Pier",
       "description": "macOS app management CLI",
       "category": "standalone",
       "icon": "shippingbox",
       "icon_color": "brown",
-      "depends_on": ["git"],
+      "depends_on": ["xcode-clt", "git"],
       "check": {
         "command": "command -v pier"
       },
       "install": {
         "method": "custom",
-        "script": "git clone https://github.com/neethanwu/pier /tmp/pier && cd /tmp/pier && make install"
+        "script": "dir=$(mktemp -d) && git clone --depth 1 https://github.com/neethanwu/pier \"$dir/pier\" && make -C \"$dir/pier\" install; status=$?; rm -rf \"$dir\"; exit $status"
       }
     },
 
