@@ -60,11 +60,12 @@ The bundled CLI binary is named `setmac-cli` (NOT `setmac`) to avoid case-insens
 ### JSON-line protocol
 CLI stdout emits one JSON object per line:
 ```json
-{"type": "status|progress|log|error|complete|auth_required|config_status", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
+{"type": "status|progress|log|error|complete|auth_required|config_status|summary", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
 ```
 Thread-safe via `threading.Lock()` in `output.py`.
 
-- **auth_required**: Tool needs admin; app shows password sheet, then writes the password to stdin so the CLI can prime `sudo` without running the installer as root.
+- **auth_required**: Sent the first time any installer calls `sudo` in a run. The app shows the password sheet and writes the password to stdin. The CLI verifies it with `sudo -S -v`, re-asks on a wrong password, and caches it for the run. Installers reach it through `SUDO_ASKPASS` (`cli/src/setmac/askpass.py`), so scripts call `sudo -A`.
+- **summary**: Last line of an install run: `{"type": "summary", "message": "...", "failed": ["tool-id"]}`. The CLI exits 2 when anything failed, so the app treats exit 2 as a normal result, not a crash.
 - **config_status**: Emitted by `configs list` for bundled/system/missing status.
 
 ### CLIBridge.swift
@@ -73,6 +74,13 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - Uses `readabilityHandler` + `terminationHandler` (not async iteration)
 - Sets rich PATH for subprocess tools (homebrew, cargo, bun, etc.)
 - Uses a Pipe for stdin (not null) so `providePassword` can inject admin when auth_required is received.
+- Install commands have no timeout; status and config listings time out after 120 s. `cancel()` sends SIGTERM, and the CLI stops its installer's whole process group.
+- All views run commands through `InstallState.run`, which allows one command at a time and answers password requests.
+
+### Install checks
+- `brew_formula` tools count as installed only when `brew list` shows them. A fresh Mac's stub `/usr/bin/git`, `python3` and `ssh` pass `command -v`, so `check.command` is ignored for formulae.
+- A tool whose dependency failed is skipped, not attempted. `install all` applies dotfiles last, skipping configs of failed tools.
+- Tests: `cd cli && uv run pytest`.
 
 ### Logging
 Uses `os.Logger` with subsystem `com.v0id.setmac`. Categories: CLIBridge, ManifestLoader, ContentView, InstallState, CategoryDetail, ConfigsView. View with:
