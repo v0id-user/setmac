@@ -6,7 +6,9 @@ import pytest
 from setmac.registry import Registry
 
 MANIFEST = Path(__file__).parents[2] / "Resources" / "tools.json"
-METHODS = {"brew_formula", "brew_cask", "script", "custom", "config"}
+METHODS = {"brew_formula", "brew_cask", "mise", "mas", "defaults", "script", "custom", "config"}
+# Methods whose installed check comes from the method itself, not check.command/path.
+SELF_CHECKING = {"brew_formula", "brew_cask", "mise", "mas", "defaults"}
 
 
 def write_manifest(tmp_path, tools):
@@ -29,11 +31,13 @@ def test_shipped_manifest_is_valid():
     assert registry.problems() == []
     for t in registry.tools:
         assert t.install.method in METHODS, t.id
-        if t.install.method.startswith("brew_"):
+        if t.install.method in ("brew_formula", "brew_cask", "mise", "mas"):
             assert t.install.target, t.id
+        if t.install.method == "defaults":
+            assert t.defaults, t.id
         if t.install.method in ("script", "custom"):
             assert t.install.script or t.install.url, t.id
-        assert t.check.command or t.check.path or t.install.method.startswith("brew_"), t.id
+        assert t.check.command or t.check.path or t.install.method in SELF_CHECKING, t.id
 
 
 def test_shipped_manifest_orders_essentials_first():

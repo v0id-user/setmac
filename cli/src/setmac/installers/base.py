@@ -10,6 +10,7 @@ import threading
 import traceback
 from enum import Enum
 
+from setmac.installers import defaults
 from setmac.output import emit_complete, emit_error, emit_log, emit_progress, emit_status
 from setmac.registry import Tool
 
@@ -35,6 +36,7 @@ def shell_env(extra: dict[str, str] | None = None) -> dict[str, str]:
         "/usr/local/bin",
         "/usr/local/sbin",
         f"{home}/.local/bin",
+        f"{home}/.local/share/mise/shims",
         f"{home}/.bun/bin",
         f"{home}/.cargo/bin",
         f"{home}/go/bin",
@@ -117,6 +119,12 @@ def check_tool(tool: Tool) -> tuple[bool, str | None]:
             or _path_exists(tool.check.path)
             or _command_ok(tool.check.command)
         )
+    elif method == "mise":
+        installed = _command_ok(["mise", "where", tool.install.target])
+    elif method == "mas":
+        installed = _path_exists(tool.check.path) or tool.install.target in _mas_installed()
+    elif method == "defaults":
+        installed = not defaults.pending(tool)
     else:
         installed = _path_exists(tool.check.path) or _command_ok(tool.check.command)
 
@@ -128,8 +136,14 @@ def _path_exists(path: str | None) -> bool:
     return bool(path) and os.path.exists(os.path.expanduser(path))
 
 
-def _command_ok(command: str | None) -> bool:
+def _command_ok(command: str | list[str] | None) -> bool:
     return bool(command) and _run_quiet(command).returncode == 0
+
+
+def _mas_installed() -> set[str]:
+    """App Store app ids reported by `mas list`."""
+    result = _run_quiet(["mas", "list"], timeout=30)
+    return {line.split()[0] for line in result.stdout.splitlines() if line.strip()}
 
 
 def _get_version(tool: Tool) -> str | None:
@@ -217,6 +231,15 @@ def install_command(tool: Tool) -> str | list[str] | None:
         if spec.method == "brew_cask":
             cmd.append("--cask")
         return cmd + [spec.target]
+    if spec.method == "mise":
+        return ["mise", "use", "--global", "--yes", spec.target] if spec.target else None
+    if spec.method == "mas":
+        if not spec.target:
+            return None
+        # `install` covers apps on the account; `get` covers free apps it never had.
+        # Some mas versions need root for both.
+        app = spec.target
+        return f"mas install {app} || mas get {app} || sudo -A mas get {app}"
     if spec.method in ("script", "custom"):
         if spec.url:
             return f'/bin/bash -c "$(curl -fsSL {spec.url})"'
@@ -224,8 +247,12 @@ def install_command(tool: Tool) -> str | list[str] | None:
     return None
 
 
-def run_tool(tool: Tool, runner: Runner) -> Outcome:
-    """Install a tool if missing, then confirm with a fresh check. Never raises."""
+def run_tool(tool: Tool, runner: Runner, position: tuple[int, int] | None = None) -> Outcome:
+    """Install a tool if missing, then confirm with a fresh check. Never raises.
+
+    `position` is (index, total) in the run, shown in the progress message.
+    """
+    progress = f" ({position[0]}/{position[1]})" if position else ""
     try:
         installed, version = check_tool(tool)
         if installed:
@@ -237,13 +264,15 @@ def run_tool(tool: Tool, runner: Runner) -> Outcome:
             emit_status(tool.id, "not_installed")
             return Outcome.ALREADY
 
-        cmd = install_command(tool)
-        if cmd is None:
-            emit_error(tool.id, f"tools.json has no install command for {tool.name}")
-            return Outcome.FAILED
-
-        emit_progress(tool.id, f"Installing {tool.name}...")
-        ok = runner.run(cmd, tool.id)
+        emit_progress(tool.id, f"Installing {tool.name}...{progress}")
+        if tool.install.method == "defaults":
+            ok = defaults.apply(tool)
+        else:
+            cmd = install_command(tool)
+            if cmd is None:
+                emit_error(tool.id, f"tools.json has no install command for {tool.name}")
+                return Outcome.FAILED
+            ok = runner.run(cmd, tool.id)
         invalidate_brew_cache()
         if not ok:
             emit_error(tool.id, f"Install of {tool.name} failed (see log)")
