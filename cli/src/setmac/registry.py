@@ -17,7 +17,7 @@ class CheckSpec:
 
 @dataclass
 class InstallSpec:
-    method: str  # brew_formula, brew_cask, script, custom, config
+    method: str  # brew_formula, brew_cask, mise, mas, defaults, script, custom, config
     target: str | None = None
     script: str | None = None
     url: str | None = None
@@ -32,6 +32,17 @@ class ConfigSpec:
 
 
 @dataclass
+class DefaultSpec:
+    """One `defaults write` setting."""
+
+    domain: str
+    key: str
+    type: str  # bool, int, float, string
+    value: bool | int | float | str
+    current_host: bool = False
+
+
+@dataclass
 class Tool:
     id: str
     name: str
@@ -43,6 +54,11 @@ class Tool:
     check: CheckSpec
     install: InstallSpec
     configs: list[ConfigSpec] = field(default_factory=list)
+    defaults: list[DefaultSpec] = field(default_factory=list)
+    # Apps to restart (killall) after defaults change, e.g. Dock, Finder.
+    restart: list[str] = field(default_factory=list)
+    # Manual step left after install, shown in the app (e.g. a permission to grant).
+    post_install: str | None = None
 
 
 def _parse_tool(data: dict) -> Tool:
@@ -78,6 +94,18 @@ def _parse_tool(data: dict) -> Tool:
             )
             for c in configs_data
         ],
+        defaults=[
+            DefaultSpec(
+                domain=d["domain"],
+                key=d["key"],
+                type=d["type"],
+                value=d["value"],
+                current_host=d.get("current_host", False),
+            )
+            for d in data.get("defaults", [])
+        ],
+        restart=data.get("restart", []),
+        post_install=data.get("post_install"),
     )
 
 
