@@ -22,7 +22,6 @@ uv run pyinstaller \
     --name setmac-cli \
     --clean \
     --noconfirm \
-    --strip \
     --distpath dist \
     --add-data "../Resources/tools.json:." \
     --add-data "../Resources/configs:configs" \

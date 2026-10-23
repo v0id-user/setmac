@@ -10,11 +10,14 @@ cli_dir      := "cli"
 
 # Clean build and run with live os.log streaming
 dev:
+    #!/usr/bin/env bash
+    set -eu
     swift package clean
     swift build
     /usr/bin/log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug --style compact &
+    log_pid=$!
+    trap 'kill $log_pid 2>/dev/null' EXIT
     .build/debug/{{app_name}}
-    -kill %1 2>/dev/null
 
 # Build debug binary (incremental)
 build:
