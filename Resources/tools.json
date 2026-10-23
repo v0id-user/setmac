@@ -57,6 +57,34 @@
         "requires_admin": true
       }
     },
+    {
+      "id": "mise",
+      "name": "mise",
+      "description": "Version manager for Node, Bun, Go and other runtimes",
+      "category": "essentials",
+      "icon": "square.stack.3d.up",
+      "icon_color": "indigo",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v mise",
+        "version_command": "mise --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "mise" }
+    },
+    {
+      "id": "mas",
+      "name": "mas",
+      "description": "Mac App Store command line interface",
+      "category": "essentials",
+      "icon": "bag",
+      "icon_color": "blue",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v mas",
+        "version_command": "mas version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "mas" }
+    },
 
     {
       "id": "git",
@@ -389,7 +417,8 @@
       "check": {
         "path": "/Applications/Raycast.app"
       },
-      "install": { "method": "brew_cask", "target": "raycast" }
+      "install": { "method": "brew_cask", "target": "raycast" },
+      "post_install": "Open Raycast, sign in, and set it as the Cmd+Space launcher."
     },
     {
       "id": "hammerspoon",
@@ -405,7 +434,8 @@
       "install": { "method": "brew_cask", "target": "hammerspoon" },
       "configs": [
         { "source": "~/.hammerspoon/init.lua", "target": "hammerspoon/init.lua" }
-      ]
+      ],
+      "post_install": "Open Hammerspoon and grant Accessibility in System Settings > Privacy & Security."
     },
     {
       "id": "rectangle",
@@ -418,7 +448,8 @@
       "check": {
         "path": "/Applications/Rectangle.app"
       },
-      "install": { "method": "brew_cask", "target": "rectangle" }
+      "install": { "method": "brew_cask", "target": "rectangle" },
+      "post_install": "Open Rectangle and grant Accessibility in System Settings > Privacy & Security."
     },
     {
       "id": "karabiner-elements",
@@ -434,7 +465,44 @@
       "install": { "method": "brew_cask", "target": "karabiner-elements" },
       "configs": [
         { "source": "~/.config/karabiner/karabiner.json", "target": "karabiner/karabiner.json" }
-      ]
+      ],
+      "post_install": "Open Karabiner-Elements and allow its driver extension and Input Monitoring in System Settings."
+    },
+    {
+      "id": "keynote",
+      "name": "Keynote",
+      "description": "Apple presentations",
+      "category": "applications",
+      "icon": "play.rectangle",
+      "icon_color": "blue",
+      "depends_on": ["mas"],
+      "check": { "path": "/Applications/Keynote.app" },
+      "install": { "method": "mas", "target": "409183694" },
+      "post_install": "Sign in to the App Store before installing App Store apps."
+    },
+    {
+      "id": "pages",
+      "name": "Pages",
+      "description": "Apple word processor",
+      "category": "applications",
+      "icon": "doc.richtext",
+      "icon_color": "orange",
+      "depends_on": ["mas"],
+      "check": { "path": "/Applications/Pages.app" },
+      "install": { "method": "mas", "target": "409201541" },
+      "post_install": "Sign in to the App Store before installing App Store apps."
+    },
+    {
+      "id": "numbers",
+      "name": "Numbers",
+      "description": "Apple spreadsheets",
+      "category": "applications",
+      "icon": "tablecells",
+      "icon_color": "green",
+      "depends_on": ["mas"],
+      "check": { "path": "/Applications/Numbers.app" },
+      "install": { "method": "mas", "target": "409203825" },
+      "post_install": "Sign in to the App Store before installing App Store apps."
     },
 
     {
@@ -444,12 +512,12 @@
       "category": "languages",
       "icon": "chevron.left.forwardslash.chevron.right",
       "icon_color": "cyan",
-      "depends_on": ["homebrew"],
+      "depends_on": ["mise"],
       "check": {
         "command": "command -v go",
         "version_command": "go version 2>&1"
       },
-      "install": { "method": "brew_formula", "target": "go" }
+      "install": { "method": "mise", "target": "go@latest" }
     },
     {
       "id": "node",
@@ -458,12 +526,12 @@
       "category": "languages",
       "icon": "server.rack",
       "icon_color": "green",
-      "depends_on": ["homebrew"],
+      "depends_on": ["mise"],
       "check": {
         "command": "command -v node",
         "version_command": "node --version 2>&1"
       },
-      "install": { "method": "brew_formula", "target": "node" }
+      "install": { "method": "mise", "target": "node@lts" }
     },
     {
       "id": "python",
@@ -515,15 +583,12 @@
       "category": "languages",
       "icon": "bolt",
       "icon_color": "orange",
-      "depends_on": [],
+      "depends_on": ["mise"],
       "check": {
         "command": "command -v bun",
         "version_command": "bun --version 2>&1"
       },
-      "install": {
-        "method": "script",
-        "script": "curl -fsSL https://bun.sh/install | bash"
-      }
+      "install": { "method": "mise", "target": "bun@latest" }
     },
 
     {
@@ -559,7 +624,8 @@
       "install": {
         "method": "script",
         "script": "git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm"
-      }
+      },
+      "post_install": "Start tmux and press prefix + I to install plugins."
     },
     {
       "id": "pier",
@@ -593,6 +659,32 @@
       "configs": [
         { "source": "~/.config/git/config", "target": "git/config" }
       ]
+    },
+    {
+      "id": "macos-defaults",
+      "name": "macOS Settings",
+      "description": "Dock auto-hide and size, Finder list view, Dark mode, tap to click, three-finger drag",
+      "category": "system",
+      "icon": "gearshape",
+      "icon_color": "gray",
+      "depends_on": [],
+      "install": { "method": "defaults" },
+      "defaults": [
+        { "domain": "com.apple.dock", "key": "autohide", "type": "bool", "value": true },
+        { "domain": "com.apple.dock", "key": "tilesize", "type": "float", "value": 43 },
+        { "domain": "com.apple.dock", "key": "magnification", "type": "bool", "value": true },
+        { "domain": "com.apple.dock", "key": "largesize", "type": "float", "value": 52 },
+        { "domain": "com.apple.finder", "key": "FXPreferredViewStyle", "type": "string", "value": "Nlsv" },
+        { "domain": "NSGlobalDomain", "key": "AppleInterfaceStyle", "type": "string", "value": "Dark" },
+        { "domain": "com.apple.AppleMultitouchTrackpad", "key": "Clicking", "type": "bool", "value": true },
+        { "domain": "com.apple.driver.AppleBluetoothMultitouch.trackpad", "key": "Clicking", "type": "bool", "value": true },
+        { "domain": "NSGlobalDomain", "key": "com.apple.mouse.tapBehavior", "type": "int", "value": 1, "current_host": true },
+        { "domain": "com.apple.AppleMultitouchTrackpad", "key": "TrackpadThreeFingerDrag", "type": "bool", "value": true },
+        { "domain": "com.apple.driver.AppleBluetoothMultitouch.trackpad", "key": "TrackpadThreeFingerDrag", "type": "bool", "value": true },
+        { "domain": "com.apple.WindowManager", "key": "EnableTiledWindowMargins", "type": "bool", "value": false }
+      ],
+      "restart": ["Dock", "Finder"],
+      "post_install": "Log out and back in so the trackpad settings take effect."
     }
   ]
 }
