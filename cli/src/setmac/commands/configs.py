@@ -17,9 +17,22 @@ from setmac.registry import Registry
 CAPTURE_IGNORE = ["__pycache__", ".git", "*.pyc", "lazy-lock.json"]
 
 
-def _configs_dir() -> Path:
-    """Get the configs directory in the project or app bundle."""
+# Where a packaged build captures to: the app bundle is read-only and replaced on update.
+USER_CONFIGS = Path(os.path.expanduser("~/Library/Application Support/setmac/configs"))
+
+
+def _capture_dir() -> Path:
+    """Where `capture` writes: the repo in dev mode, Application Support when packaged."""
     if getattr(sys, "frozen", False):
+        return USER_CONFIGS
+    return _configs_dir()
+
+
+def _configs_dir() -> Path:
+    """Where configs are read from. A packaged build prefers configs you captured."""
+    if getattr(sys, "frozen", False):
+        if USER_CONFIGS.exists():
+            return USER_CONFIGS
         # Inside the .app: Contents/MacOS/setmac-cli -> Contents/Resources/configs.
         app_configs = Path(os.path.dirname(sys.executable)).parent / "Resources" / "configs"
         if app_configs.exists():
@@ -47,7 +60,7 @@ def configs_cmd():
 def capture():
     """Capture current system configs into the project bundle."""
     registry = Registry()
-    configs_dir = _configs_dir()
+    configs_dir = _capture_dir()
     configs_dir.mkdir(parents=True, exist_ok=True)
 
     count = 0
