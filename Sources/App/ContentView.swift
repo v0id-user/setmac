@@ -14,7 +14,16 @@ struct ContentView: View {
             SidebarView(selection: $selectedItem, state: state)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
         } detail: {
-            if let item = selectedItem {
+            if let loadError = state.loadError {
+                ContentUnavailableView {
+                    Label("Couldn't Load the Tool List", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(loadError)
+                } actions: {
+                    Button("Retry") { Task { await reload() } }
+                        .disabled(state.isRunning)
+                }
+            } else if let item = selectedItem {
                 DetailView(item: item, state: state, bridge: bridge)
             } else {
                 ContentUnavailableView(
@@ -26,11 +35,7 @@ struct ContentView: View {
         }
         .task {
             log.info("App launched, loading manifest...")
-            state.manifest = ManifestLoader.load()
-            log.info("Manifest loaded: \(state.totalTools, privacy: .public) tools")
-            log.info("Starting status refresh...")
-            await refreshStatuses()
-            log.info("Status refresh complete: \(state.installedCount, privacy: .public)/\(state.totalTools, privacy: .public) installed")
+            await reload()
         }
         .alert("Error", isPresented: .init(
             get: { errorMessage != nil },
@@ -50,6 +55,19 @@ struct ContentView: View {
                 onCancel: { state.fulfillAuthRequest("") }
             )
         }
+    }
+
+    /// Load the manifest from scratch and, if it loads, check every tool's status.
+    private func reload() async {
+        state.reset()
+        state.loadManifest()
+        if let loadError = state.loadError {
+            log.error("Manifest failed to load: \(loadError, privacy: .public)")
+            return
+        }
+        log.info("Manifest loaded: \(state.totalTools, privacy: .public) tools")
+        await refreshStatuses()
+        log.info("Status refresh complete: \(state.installedCount, privacy: .public)/\(state.totalTools, privacy: .public) installed")
     }
 
     private func refreshStatuses() async {
