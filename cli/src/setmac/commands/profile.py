@@ -7,7 +7,9 @@ import sys
 
 import click
 
-from setmac import gitprofile, profile, trust
+from pathlib import Path
+
+from setmac import export, gitprofile, profile, trust
 from setmac.output import emit_manifest, emit_profile_error
 from setmac.registry import EXIT_PROFILE, ManifestError, Registry
 
@@ -197,3 +199,34 @@ def update(ctx: click.Context, spec: str | None, expected: str | None):
     gitprofile.write_lock(gitprofile.cache_root(profile.STATE_DIR, candidate.url), candidate)
     trust.record(resolved)
     click.echo(f"Locked {candidate.url} to {candidate.sha[:12]} and trusted it.")
+
+
+@profile_cmd.command("export")
+@click.option("--from-ref", "refs", multiple=True, required=True, metavar="REF",
+              help="Git ref whose Resources/tools.json and Resources/configs hold the old setup (repeatable)")
+@click.option("--repo", type=click.Path(file_okay=False, path_type=Path), default=".", help="Repository holding the refs")
+@click.option("--out", type=click.Path(path_type=Path), required=True, help="New profile folder (outside the setmac repo)")
+@click.option("--name", default="me", help="Profile name")
+@click.option("--extends", "extends", default="minimal", help="Starter to build on")
+@click.option("--home/--no-home", "use_home", default=True, help="Prefer the dotfiles on this Mac over the refs' copies")
+@click.option("--accept-reviewed", is_flag=True, help="Write despite medium scanner findings you have reviewed")
+def export_profile(refs, repo, out, name, extends, use_home, accept_reviewed):
+    """Turn an old all-in-one setup (git refs) into a private profile folder."""
+    try:
+        report = export.build(repo, list(refs), out, name, extends, use_home, accept_reviewed)
+    except export.ExportError as e:
+        raise click.ClickException(str(e)) from e
+    click.echo(f"Wrote {out}")
+    click.echo(f"  {len(report.custom)} custom tools: {', '.join(report.custom) or '-'}")
+    click.echo(f"  {len(report.added)} catalog tools added back")
+    click.echo(f"  dotfiles from this Mac: {', '.join(report.from_home) or '-'}")
+    click.echo(f"  dotfiles from the refs: {', '.join(report.from_ref) or '-'}")
+    if report.differs:
+        click.echo(f"  newer on this Mac than in the refs: {', '.join(report.differs)}")
+    for line in report.dropped:
+        click.echo(f"  dropped: {line}")
+    for finding in report.findings:
+        click.echo(f"  reviewed: {finding.describe()}")
+    for line in report.shell_checks:
+        click.echo(f"  {line}")
+    click.echo("A git repository was initialised; review the files, then make the first signed commit yourself.")
