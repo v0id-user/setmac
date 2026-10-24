@@ -1,6 +1,0 @@
-theme = Black Metal (Marduk)
-background-opacity = 0.8
-
-macos-option-as-alt = true
-
-keybind = cmd+v=paste_from_clipboard
