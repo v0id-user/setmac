@@ -10,7 +10,7 @@ from pathlib import Path
 import click
 
 from setmac.output import emit_config_status, emit_error, emit_log
-from setmac.registry import Registry
+from setmac.registry import Registry, get_registry
 
 
 # Files that capture leaves out, so they never count as a difference either.
@@ -57,16 +57,16 @@ def configs_cmd():
 
 
 @configs_cmd.command("capture")
-def capture():
+@click.pass_context
+def capture(ctx):
     """Capture current system configs into the project bundle."""
-    registry = Registry()
-    configs_dir = _capture_dir()
-    configs_dir.mkdir(parents=True, exist_ok=True)
+    registry = get_registry(ctx)
+    capture_dir = _capture_dir()
 
     count = 0
     for tool, config in _all_configs(registry):
         source = Path(os.path.expanduser(config.source))
-        target = configs_dir / config.target
+        target = (tool.configs_root or capture_dir) / config.target
 
         if not source.exists():
             emit_log(f"Skipping {config.source} (not found)", tool=tool.id)
@@ -87,14 +87,15 @@ def capture():
         emit_log(f"Captured {config.source}", tool=tool.id)
         count += 1
 
-    emit_log(f"Captured {count} config(s) to {configs_dir}")
+    emit_log(f"Captured {count} config(s)")
 
 
 @configs_cmd.command("apply")
 @click.option("--dry-run", is_flag=True, help="Show what would be copied")
-def apply(dry_run):
+@click.pass_context
+def apply(ctx, dry_run):
     """Apply bundled configs to system locations."""
-    apply_configs(Registry(), dry_run=dry_run)
+    apply_configs(get_registry(ctx), dry_run=dry_run)
 
 
 def _same(a: Path, b: Path) -> bool:
@@ -116,15 +117,12 @@ def apply_configs(registry: Registry, skip_tools: set[str] | None = None, dry_ru
     so a shell config never points at something that is not there.
     """
     configs_dir = _configs_dir()
-    if not configs_dir.exists():
-        emit_error("configs", f"No configs directory at {configs_dir}. Run 'setmac configs capture' first.")
-        return 0
 
     skip_tools = skip_tools or set()
     backup_dir = Path(os.path.expanduser("~/.config/setmac-backup")) / datetime.now().strftime("%Y%m%d-%H%M%S")
     count = 0
     for tool, config in _all_configs(registry):
-        source = configs_dir / config.target
+        source = (tool.configs_root or configs_dir) / config.target
         target = Path(os.path.expanduser(config.source))
 
         if tool.id in skip_tools:
@@ -168,14 +166,15 @@ def apply_configs(registry: Registry, skip_tools: set[str] | None = None, dry_ru
 
 
 @configs_cmd.command("list")
-def list_configs():
+@click.pass_context
+def list_configs(ctx):
     """List all config files and their status."""
-    registry = Registry()
+    registry = get_registry(ctx)
     configs_dir = _configs_dir()
 
     for tool, config in _all_configs(registry):
         source = Path(os.path.expanduser(config.source))
-        bundled = (configs_dir / config.target).exists()
+        bundled = ((tool.configs_root or configs_dir) / config.target).exists()
         system = source.exists()
 
         status = "bundled+system" if bundled and system else "bundled" if bundled else "system" if system else "missing"

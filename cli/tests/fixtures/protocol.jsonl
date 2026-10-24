@@ -9,3 +9,6 @@
 {"type": "auth_required", "tool": "rosetta", "message": "Admin password required for installation"}
 {"type": "config_status", "tool": "zsh", "source": "zshrc", "target": "~/.zshrc", "status": "bundled+system"}
 {"type": "summary", "message": "1 installed, 1 already set up, 1 failed: rosetta", "failed": ["rosetta"]}
+{"type": "profile_error", "profile": "web", "message": "Profile 'web' cannot be used: profile 'web' adds unknown tool 'nope'", "problems": [{"code": "unknown_tool", "tool_id": "nope", "field": "tools.add", "message": "profile 'web' adds unknown tool 'nope'"}]}
+{"type": "error", "message": "Profile 'web' cannot be used: profile 'web' adds unknown tool 'nope'", "status": "error"}
+{"type": "manifest", "profile": "minimal", "manifest": {"version": "1.0.0", "name": "minimal", "description": "", "tools": []}}

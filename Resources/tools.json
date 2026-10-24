@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "name": "v0id's Dev Setup",
-  "description": "macOS developer environment installer — everything needed after a fresh format",
-  "author": "v0id",
+  "name": "setmac",
+  "description": "The public tool catalog. Profiles choose from it; see Resources/profiles.",
+  "author": "setmac contributors",
   "tools": [
     {
       "id": "xcode-clt",
@@ -126,10 +126,7 @@
         "command": "command -v nvim",
         "version_command": "nvim --version 2>&1 | head -1"
       },
-      "install": { "method": "brew_formula", "target": "neovim" },
-      "configs": [
-        { "source": "~/.config/nvim", "target": "nvim", "is_dir": true }
-      ]
+      "install": { "method": "brew_formula", "target": "neovim" }
     },
     {
       "id": "tmux",
@@ -143,10 +140,7 @@
         "command": "command -v tmux",
         "version_command": "tmux -V 2>&1"
       },
-      "install": { "method": "brew_formula", "target": "tmux" },
-      "configs": [
-        { "source": "~/.tmux.conf", "target": "tmux.conf" }
-      ]
+      "install": { "method": "brew_formula", "target": "tmux" }
     },
     {
       "id": "just",
@@ -219,6 +213,20 @@
       "install": { "method": "brew_formula", "target": "fd" }
     },
     {
+      "id": "jq",
+      "name": "jq",
+      "description": "Command-line JSON processor",
+      "category": "cli-tools",
+      "icon": "curlybraces",
+      "icon_color": "yellow",
+      "depends_on": ["homebrew"],
+      "check": {
+        "command": "command -v jq",
+        "version_command": "jq --version 2>&1"
+      },
+      "install": { "method": "brew_formula", "target": "jq" }
+    },
+    {
       "id": "ripgrep",
       "name": "ripgrep",
       "description": "Recursively search directories for a regex pattern",
@@ -244,10 +252,7 @@
         "command": "command -v starship",
         "version_command": "starship --version 2>&1"
       },
-      "install": { "method": "brew_formula", "target": "starship" },
-      "configs": [
-        { "source": "~/.config/starship.toml", "target": "starship.toml" }
-      ]
+      "install": { "method": "brew_formula", "target": "starship" }
     },
     {
       "id": "lazygit",
@@ -401,10 +406,7 @@
       "check": {
         "path": "/Applications/Ghostty.app"
       },
-      "install": { "method": "brew_cask", "target": "ghostty" },
-      "configs": [
-        { "source": "~/.config/ghostty/config", "target": "ghostty/config" }
-      ]
+      "install": { "method": "brew_cask", "target": "ghostty" }
     },
     {
       "id": "raycast",
@@ -421,23 +423,6 @@
       "post_install": "Open Raycast, sign in, and set it as the Cmd+Space launcher."
     },
     {
-      "id": "hammerspoon",
-      "name": "Hammerspoon",
-      "description": "macOS desktop automation",
-      "category": "applications",
-      "icon": "hammer.circle",
-      "icon_color": "yellow",
-      "depends_on": ["homebrew"],
-      "check": {
-        "path": "/Applications/Hammerspoon.app"
-      },
-      "install": { "method": "brew_cask", "target": "hammerspoon" },
-      "configs": [
-        { "source": "~/.hammerspoon/init.lua", "target": "hammerspoon/init.lua" }
-      ],
-      "post_install": "Open Hammerspoon and grant Accessibility in System Settings > Privacy & Security."
-    },
-    {
       "id": "rectangle",
       "name": "Rectangle",
       "description": "Window management via keyboard shortcuts",
@@ -450,23 +435,6 @@
       },
       "install": { "method": "brew_cask", "target": "rectangle" },
       "post_install": "Open Rectangle and grant Accessibility in System Settings > Privacy & Security."
-    },
-    {
-      "id": "karabiner-elements",
-      "name": "Karabiner-Elements",
-      "description": "Advanced keyboard remapping",
-      "category": "applications",
-      "icon": "keyboard",
-      "icon_color": "gray",
-      "depends_on": ["homebrew"],
-      "check": {
-        "path": "/Applications/Karabiner-Elements.app"
-      },
-      "install": { "method": "brew_cask", "target": "karabiner-elements" },
-      "configs": [
-        { "source": "~/.config/karabiner/karabiner.json", "target": "karabiner/karabiner.json" }
-      ],
-      "post_install": "Open Karabiner-Elements and allow its driver extension and Input Monitoring in System Settings."
     },
     {
       "id": "keynote",
@@ -605,10 +573,7 @@
       "install": {
         "method": "script",
         "script": "RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
-      },
-      "configs": [
-        { "source": "~/.zshrc", "target": "zshrc" }
-      ]
+      }
     },
     {
       "id": "tpm",
@@ -627,38 +592,7 @@
       },
       "post_install": "Start tmux and press prefix + I to install plugins."
     },
-    {
-      "id": "pier",
-      "name": "Pier",
-      "description": "Menu bar app that tracks running dev servers",
-      "category": "applications",
-      "icon": "server.rack",
-      "icon_color": "brown",
-      "depends_on": [],
-      "check": { "path": "/Applications/Pier.app" },
-      "install": {
-        "method": "custom",
-        "script": "work=$(mktemp -d) && curl -fsSL -o \"$work/Pier.dmg\" https://github.com/neethanwu/pier/releases/latest/download/Pier.dmg && hdiutil attach -nobrowse -quiet -mountpoint \"$work/mnt\" \"$work/Pier.dmg\" && ditto \"$work/mnt/Pier.app\" /Applications/Pier.app; status=$?; hdiutil detach -quiet \"$work/mnt\" 2>/dev/null; rm -rf \"$work\"; exit $status"
-      },
-      "post_install": "Open Pier once; it lives in the menu bar."
-    },
 
-    {
-      "id": "git-config",
-      "name": "Git Config",
-      "description": "Git configuration (non-sensitive)",
-      "category": "configs",
-      "icon": "gearshape",
-      "icon_color": "orange",
-      "depends_on": ["git"],
-      "check": {
-        "path": "~/.config/git/config"
-      },
-      "install": { "method": "config" },
-      "configs": [
-        { "source": "~/.config/git/config", "target": "git/config" }
-      ]
-    },
     {
       "id": "macos-defaults",
       "name": "macOS Settings",

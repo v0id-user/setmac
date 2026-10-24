@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import json
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import click
+
+from setmac import profile
+from setmac.output import emit_profile_error
 from setmac.validate import Problem, validate_tools
+
+# Exit code when the active profile cannot be loaded or merged.
+EXIT_PROFILE = 3
 
 
 @dataclass
@@ -61,6 +67,8 @@ class Tool:
     restart: list[str] = field(default_factory=list)
     # Manual step left after install, shown in the app (e.g. a permission to grant).
     post_install: str | None = None
+    # Directory holding this tool's config files when they come from a profile.
+    configs_root: Path | None = None
 
 
 def _parse_tool(data: dict) -> Tool:
@@ -111,29 +119,47 @@ def _parse_tool(data: dict) -> Tool:
     )
 
 
+class ManifestError(ValueError):
+    """A manifest with problems; `problems` holds them as structured records."""
+
+    def __init__(self, problems: list[Problem]):
+        self.problems = problems
+        super().__init__("Invalid tools.json:\n  " + "\n  ".join(str(p) for p in problems))
+
+
 class Registry:
-    """Loads tools.json and provides query methods."""
+    """Loads a manifest (the catalog, or a profile merged with it) and answers queries."""
 
-    def __init__(self, manifest_path: Path | None = None):
-        if manifest_path is None:
-            if getattr(sys, "frozen", False):
-                # Running as PyInstaller bundle
-                manifest_path = Path(sys._MEIPASS) / "tools.json"
-            else:
-                # Dev mode: relative to source tree
-                manifest_path = Path(__file__).parent.parent.parent.parent / "Resources" / "tools.json"
-
-        with open(manifest_path) as f:
-            data = json.load(f)
+    def __init__(
+        self,
+        manifest_path: Path | None = None,
+        *,
+        data: dict | None = None,
+        configs_roots: dict[str, Path] | None = None,
+        sensitive_ok: set[str] | None = None,
+    ):
+        if data is None:
+            with open(manifest_path or profile.catalog_path()) as f:
+                data = json.load(f)
 
         self.version = data.get("version", "0.0.0")
         self.name = data.get("name", "")
         self.description = data.get("description", "")
+        self.data = data
+        self.sensitive_ok = sensitive_ok or set()
         self.tools: list[Tool] = [_parse_tool(t) for t in data.get("tools", [])]
+        for tool in self.tools:
+            tool.configs_root = (configs_roots or {}).get(tool.id)
         self._by_id: dict[str, Tool] = {t.id: t for t in self.tools}
-        problems = self.problems()
+        problems = self.validation_problems()
         if problems:
-            raise ValueError("Invalid tools.json:\n  " + "\n  ".join(problems))
+            raise ManifestError(problems)
+
+    @classmethod
+    def for_profile(cls, spec: str | None = None) -> Registry:
+        """The active profile (or `spec`) merged with the catalog."""
+        resolved = profile.resolve(spec)
+        return cls(data=resolved.manifest, configs_roots=resolved.configs_roots, sensitive_ok=resolved.sensitive_ok)
 
     def problems(self) -> list[str]:
         """Manifest mistakes that would break installing, one message each."""
@@ -141,7 +167,7 @@ class Registry:
 
     def validation_problems(self) -> list[Problem]:
         """Manifest mistakes as structured {code, tool_id, field, message} records."""
-        return validate_tools(self.tools)
+        return validate_tools(self.tools, sensitive_ok=self.sensitive_ok)
 
     def get(self, tool_id: str) -> Tool | None:
         return self._by_id.get(tool_id)
@@ -198,3 +224,18 @@ class Registry:
                         queue.append(other_tid)
 
         return result
+
+
+def get_registry(ctx: click.Context | None = None) -> Registry:
+    """The registry for the active profile: `--profile`, SETMAC_PROFILE, the pointer, or minimal.
+
+    A profile that cannot be used is reported as a `profile_error` event and exits 3.
+    """
+    root = ctx.find_root() if ctx else None
+    flag = (root.obj or {}).get("profile") if root else None
+    spec, _ = profile.active_spec(flag)
+    try:
+        return Registry.for_profile(spec)
+    except (profile.ProfileError, ManifestError) as e:
+        emit_profile_error(spec, e.problems)
+        raise SystemExit(EXIT_PROFILE) from e

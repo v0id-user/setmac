@@ -24,6 +24,7 @@ uv run pyinstaller \
     --noconfirm \
     --distpath dist \
     --add-data "../Resources/tools.json:." \
+    --add-data "../Resources/profiles:profiles" \
     --add-data "../Resources/configs:configs" \
     src/setmac/__main__.py
 

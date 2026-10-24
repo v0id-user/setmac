@@ -12,7 +12,7 @@ from setmac.commands.configs import apply_configs
 from setmac.commands.status import status_cmd
 from setmac.installers.base import Outcome, Runner, check_tool, run_tool
 from setmac.output import emit_error, emit_log, emit_skipped, emit_status, emit_summary
-from setmac.registry import Registry, Tool
+from setmac.registry import Registry, Tool, get_registry
 
 EXIT_SOME_FAILED = 2
 
@@ -34,7 +34,7 @@ def install_cmd(
             ctx.invoke(status_cmd, tool_id=tid)
         return
 
-    registry = Registry()
+    registry = get_registry(ctx)
     if everything:
         tools = registry.install_order()
     elif category:
@@ -79,7 +79,7 @@ def plan_tools(tools: list[Tool], apply_dotfiles: bool) -> None:
     admin = [t.id for t in missing if t.install.requires_admin]
     if admin:
         emit_log("Needs an admin password: " + ", ".join(admin))
-    if apply_dotfiles:
+    if apply_dotfiles and any(t.configs for t in tools):
         emit_log("Would apply dotfiles at the end")
 
 
