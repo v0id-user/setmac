@@ -27,6 +27,12 @@ def emit_every_event():
     output.emit_summary("1 installed, 1 already set up, 1 failed: rosetta", failed=["rosetta"])
     output.emit_profile_error("web", [Problem("unknown_tool", "nope", "tools.add", "profile 'web' adds unknown tool 'nope'")])
     output.emit_manifest("minimal", {"version": "1.0.0", "name": "minimal", "description": "", "tools": []})
+    output.emit_manifest("me", {"version": "1", "name": "me", "description": "", "tools": []},
+                         spec="~/me", trusted=False, content_hash="ab12")
+    output.emit_profiles("web", "pointer", [{"name": "web", "description": "Web work"}])
+    output.emit_review("~/me", "Profile: me", "ab12", False)
+    output.emit_config_diff("zshrc", "-old\n+new\n")
+    output.emit_backups([{"stamp": "20261024-101500", "ids": ["zshrc"]}])
     output.emit_configs([{"id": "zsh/zshrc", "tool": "zsh", "source": "~/.zshrc", "target": "zsh/zshrc", "is_dir": False, "status": "differs"}])
 
 

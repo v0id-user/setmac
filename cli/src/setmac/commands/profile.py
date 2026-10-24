@@ -10,7 +10,7 @@ import click
 from pathlib import Path
 
 from setmac import export, gitprofile, profile, trust
-from setmac.output import emit_manifest, emit_profile_error
+from setmac.output import emit_manifest, emit_profile_error, emit_profiles, emit_review
 from setmac.registry import EXIT_PROFILE, ManifestError, Registry
 
 
@@ -55,14 +55,14 @@ def profile_cmd():
 
 
 @profile_cmd.command("list")
-@click.option("--json", "as_json", is_flag=True, help="Print one JSON object")
+@click.option("--json", "as_json", is_flag=True, help="Print a `profiles` event")
 @click.pass_context
 def list_profiles(ctx: click.Context, as_json: bool):
     """List the starter profiles and show which profile is active."""
     spec, source = profile.active_spec((ctx.find_root().obj or {}).get("profile"))
     starters = [{"name": p.name, "description": p.data.get("description", "")} for p in profile.starters()]
     if as_json:
-        click.echo(json.dumps({"active": spec, "source": source, "starters": starters}))
+        emit_profiles(spec, source, starters)
         return
     click.echo(f"Active profile: {spec} (from {source})\n")
     click.echo("Starter profiles:")
@@ -84,7 +84,9 @@ def show(ctx: click.Context, spec: str | None, as_json: bool):
         emit_profile_error(spec, e.problems)
         raise SystemExit(EXIT_PROFILE) from e
     if as_json:
-        emit_manifest(resolved.profile.name, resolved.manifest)
+        ident = trust.identity(resolved)
+        emit_manifest(resolved.profile.name, resolved.manifest, spec=spec, trusted=trust.is_trusted(resolved),
+                      content_hash=ident["content_hash"] if ident else None)
         return
     click.echo(" -> ".join(p.name for p in resolved.chain))
     click.echo(f"{len(registry.tools)} tools, in install order:")
@@ -131,11 +133,17 @@ def validate(ctx: click.Context, spec: str | None, as_json: bool):
 
 @profile_cmd.command("review")
 @click.argument("spec", required=False)
+@click.option("--json", "as_json", is_flag=True, help="Print a `review` event")
 @click.pass_context
-def review(ctx: click.Context, spec: str | None):
+def review(ctx: click.Context, spec: str | None, as_json: bool):
     """Print everything a profile would run or write, verbatim."""
     spec = _spec(ctx, spec)
     resolved, registry = _resolve_or_exit(spec)
+    if as_json:
+        ident = trust.identity(resolved)
+        emit_review(spec, trust.review(resolved, registry), ident["content_hash"] if ident else None,
+                    trust.is_trusted(resolved))
+        return
     click.echo(trust.review(resolved, registry))
     click.echo("")
     if trust.is_trusted(resolved):

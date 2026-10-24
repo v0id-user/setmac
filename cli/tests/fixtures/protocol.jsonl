@@ -12,4 +12,9 @@
 {"type": "profile_error", "profile": "web", "message": "Profile 'web' cannot be used: profile 'web' adds unknown tool 'nope'", "problems": [{"code": "unknown_tool", "tool_id": "nope", "field": "tools.add", "message": "profile 'web' adds unknown tool 'nope'"}]}
 {"type": "error", "message": "Profile 'web' cannot be used: profile 'web' adds unknown tool 'nope'", "status": "error"}
 {"type": "manifest", "profile": "minimal", "manifest": {"version": "1.0.0", "name": "minimal", "description": "", "tools": []}}
+{"type": "manifest", "profile": "me", "manifest": {"version": "1", "name": "me", "description": "", "tools": []}, "spec": "~/me", "trusted": false, "content_hash": "ab12"}
+{"type": "profiles", "active": "web", "source": "pointer", "starters": [{"name": "web", "description": "Web work"}]}
+{"type": "review", "spec": "~/me", "text": "Profile: me", "trusted": false, "content_hash": "ab12"}
+{"type": "config_diff", "id": "zshrc", "diff": "-old\n+new\n"}
+{"type": "backups", "backups": [{"stamp": "20261024-101500", "ids": ["zshrc"]}]}
 {"type": "configs", "configs": [{"id": "zsh/zshrc", "tool": "zsh", "source": "~/.zshrc", "target": "zsh/zshrc", "is_dir": false, "status": "differs"}]}

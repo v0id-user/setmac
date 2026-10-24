@@ -168,3 +168,27 @@ def test_apply_refuses_a_profile_that_ships_a_secret(dots, home):
     (dots / ".setmac-scan-allow").write_text("private-key:zshrc\n")
     trust(dots)
     assert run("--profile", str(dots), "configs", "apply", "--yes").exit_code == 0
+
+
+def test_json_events_for_the_app(dots, home, tmp_path):
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    (fresh / "profile.json").write_text(json.dumps({"schema": 1, "name": "fresh"}))
+    shown = json.loads(run("--profile", str(fresh), "profile", "show", "--json").output)
+    assert shown["trusted"] is False and len(shown["content_hash"]) == 64 and shown["spec"] == str(fresh)
+    review = json.loads(run("--profile", str(fresh), "profile", "review", "--json").output)
+    assert review["type"] == "review" and review["content_hash"] == shown["content_hash"]
+    assert json.loads(run("--profile", str(dots), "profile", "show", "--json").output)["trusted"] is True
+    starter = json.loads(run("--profile", "web", "profile", "show", "--json").output)
+    assert starter["trusted"] is True and "content_hash" not in starter
+
+    (home / ".zshrc").write_text("mine\n")
+    diff = json.loads(run("--profile", str(dots), "configs", "diff", "zshrc", "--json").output)
+    assert diff == {"type": "config_diff", "id": "zshrc", "diff": diff["diff"]} and "+profile zshrc" in diff["diff"]
+    assert json.loads(run("configs", "backups", "--json").output) == {"type": "backups", "backups": []}
+    run("--profile", str(dots), "configs", "apply", "--only", "zshrc", "--yes")
+    backups = json.loads(run("configs", "backups", "--json").output)["backups"]
+    assert [b["ids"] for b in backups] == [["zshrc"]]
+
+    listed = json.loads(run("profile", "list", "--json").output)
+    assert listed["type"] == "profiles" and listed["source"] == "default"
