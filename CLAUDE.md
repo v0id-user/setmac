@@ -120,12 +120,14 @@ One logical change per commit: group related edits (all release pipeline files i
 - **Persistent rule**: Also follow `.cursor/rules/release-policy.mdc` as the project source of truth for release, versioning, signing, and Gatekeeper workaround policy.
 - **Project skill**: Use `.cursor/skills/setmac-release-ops/SKILL.md` when working on releases, packaging hotfixes, signing/notarization, or shipped-build failures.
 - **Playbook**: Use `docs/ai-maintainer-playbook.md` for the shared human + AI release workflow and validation checklist.
-- **Canary**: Push to `canary` → auto-publishes `vX.Y.Z-canary.N`
-- **Beta**: Push to `beta` → auto-publishes `vX.Y.Z-beta.N`
+- **Canary**: Push to `canary` → publishes `vX.Y.Z-canary.N` once the maintainer approves the run
+- **Beta**: Push to `beta` → publishes `vX.Y.Z-beta.N` once the maintainer approves the run
 - **Stable**: Manual only — run "Release Stable" workflow from Actions, default ref `main`. Never auto-release stable.
 - **Versioning**: semantic-release is source of truth. Do not manually bump versions.
 - **Branch setup**: Create `canary` and `beta` from `main` if missing: `git checkout -b canary main && git push -u origin canary` (same for beta).
 - **Signing**: Release builds go through `scripts/release-build.sh`, sign artifacts by default, and only notarize when Apple signing secrets are configured.
+- **Signed release commits and tags**: every release job runs in the protected `release` environment (maintainer approval; branches `main`, `canary`, `beta`). `scripts/ci-signing-key.sh` imports a signing-only subkey of the maintainer's GPG key from the environment secrets `RELEASE_GPG_PRIVATE_KEY` and `RELEASE_GPG_PASSPHRASE` and checks it signs before semantic-release runs. semantic-release commits as `commit_author` in `pyproject.toml` (also the committer), whose email must be verified on the key owner's GitHub account. The release commit is pushed straight to `main` over SSH with the `RELEASE_DEPLOY_KEY` deploy key (`actions/checkout` `ssh-key`, plus `ignore_token_for_push` in `pyproject.toml`); deploy keys are the `main` ruleset's only bypass actor, because GitHub Actions cannot be one on a personal account. The bypass skips every `main` rule, including required signatures, so the signing check in `ci-signing-key.sh` is what keeps release commits signed. Keep the release deploy key the repo's only deploy key.
+- **Local release (fallback)**: `UV_PYTHON=3.14 uv run semantic-release version --no-push --no-vcs-release` signs with the maintainer's own key; push the release commit through a PR, then the tag, then `gh release create`.
 - **User notes**: If a release is only ad-hoc signed, include the Gatekeeper workaround in release/install notes.
 
 ## Development Rules
