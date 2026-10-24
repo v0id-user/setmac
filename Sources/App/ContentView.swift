@@ -60,7 +60,7 @@ struct ContentView: View {
     /// Load the manifest from scratch and, if it loads, check every tool's status.
     private func reload() async {
         state.reset()
-        state.loadManifest()
+        await state.loadManifest(with: bridge)
         if let loadError = state.loadError {
             log.error("Manifest failed to load: \(loadError, privacy: .public)")
             return
