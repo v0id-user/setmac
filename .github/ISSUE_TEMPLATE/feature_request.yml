@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a change or a new tool for the catalog
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that setmac does not support today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should setmac do? For a new tool, include its install method (brew formula, cask, mise, App Store id, script) and how to check it is installed.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
