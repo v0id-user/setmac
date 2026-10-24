@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "name": "mobile",
-  "description": "minimal plus Node and Bun for React Native and Expo",
+  "description": "minimal plus Node, Bun, CocoaPods and Watchman for React Native and Expo",
   "extends": "minimal",
   "tools": {
-    "add": ["node", "bun", "lazygit"]
+    "add": ["node", "bun", "lazygit", "cocoapods", "watchman"]
   }
 }

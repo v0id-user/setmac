@@ -52,7 +52,9 @@ jobs:
           sudo rm -rf /opt/homebrew /usr/local/Homebrew /usr/local/Caskroom /usr/local/bin/brew || true
           sudo rm -rf /Library/Developer/CommandLineTools || true
           for pkg in $(pkgutil --pkgs | grep -i CLTools); do sudo pkgutil --forget "$pkg" || true; done
-          for app in /Applications/Xcode*.app; do sudo mv "$app" "/Users/Shared/hidden-$(basename "$app")" || true; done
+          # Delete rather than move: the big casks need the disk space.
+          sudo rm -rf /Applications/Xcode*.app || true
+          df -h /
           sudo xcode-select --reset || true
           # A brand-new admin user: empty home, and sudo that asks for a password.
           sudo sysadminctl -addUser "$E2E_USER" -fullName "setmac e2e" -password "$E2E_PASSWORD" -admin

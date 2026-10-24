@@ -165,9 +165,10 @@ You can also Control-click the app and choose `Open`. This is only a temporary w
 The catalog (profiles pick from it):
 
 **Essentials**: Xcode CLT, Rosetta, Homebrew, mise, mas
-**CLI**: git, gh, neovim, tmux, just, fzf, bat, eza, fd, jq, ripgrep, starship, lazygit, btop, fastfetch, yazi, tree-sitter, gnupg, openssh, imagemagick
-**Apps**: Cursor, Claude Code, Ghostty, Raycast, Rectangle, Keynote, Pages, Numbers
-**Languages**: Go, Node, Python, uv, LuaJIT, Bun
+**CLI**: git, gh, neovim, tmux, just, fzf, bat, eza, fd, jq, yq, ripgrep, starship, lazygit, btop, fastfetch, yazi, tree-sitter, gnupg, pinentry-mac, openssh, imagemagick, ffmpeg, oxipng, poppler, typst, ollama, watchman, cocoapods
+**DevOps and security**: kubectl, Helm, kubeconform, k6, flyctl, cloudflared, AWS CLI, SOPS, age, gitleaks, git-filter-repo, lefthook, actionlint, hadolint, golangci-lint, psql (libpq)
+**Apps**: Cursor, Claude Code, Ghostty, Raycast, Rectangle, Visual Studio Code, Docker Desktop, Hoppscotch, pgAdmin 4, Keynote, Pages, Numbers
+**Languages**: Go, Node, Python, uv, LuaJIT, Bun, pnpm, Elixir, Rust
 **Standalone**: Oh My Zsh, TPM
 **macOS settings**: Dock, Finder, Dark mode and trackpad defaults (off unless a profile enables them)
 
