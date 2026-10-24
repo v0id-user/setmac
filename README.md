@@ -23,8 +23,7 @@ setmac/
 ├── cli/              # Python CLI (uv + click)
 ├── Resources/
 │   ├── tools.json    # The public tool catalog
-│   ├── profiles/     # Starter profiles: minimal, web, backend, mobile
-│   └── configs/      # Old bundled dotfiles (moving to private profiles)
+│   └── profiles/     # Starter profiles: minimal, web, backend, mobile
 ├── scripts/          # Build, bundle, DMG scripts
 ├── justfile          # All commands
 └── Package.swift     # SPM config
@@ -140,8 +139,8 @@ The public catalog. Every tool is defined in `Resources/tools.json` with:
 just dev             # Build and run in debug mode
 just build           # Build debug binary
 just status          # Check install status of all tools
-just capture-configs # Capture current system configs
-just apply-configs   # Apply bundled configs to system
+just capture-configs # Copy dotfiles from this Mac into your profile
+just apply-configs   # Apply your profile's dotfiles (asks per file)
 just bundle          # Create .app bundle with embedded CLI
 just dmg             # Create DMG for distribution
 just                 # List all recipes
