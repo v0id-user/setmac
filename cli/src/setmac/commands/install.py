@@ -34,7 +34,7 @@ def install_cmd(
             ctx.invoke(status_cmd, tool_id=tid)
         return
 
-    registry = get_registry(ctx)
+    registry = get_registry(ctx, require_trust=True)
     if everything:
         tools = registry.install_order()
     elif category:

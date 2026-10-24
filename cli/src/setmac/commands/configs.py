@@ -60,7 +60,7 @@ def configs_cmd():
 @click.pass_context
 def capture(ctx):
     """Capture current system configs into the project bundle."""
-    registry = get_registry(ctx)
+    registry = get_registry(ctx, require_trust=True)
     capture_dir = _capture_dir()
 
     count = 0
@@ -95,7 +95,7 @@ def capture(ctx):
 @click.pass_context
 def apply(ctx, dry_run):
     """Apply bundled configs to system locations."""
-    apply_configs(get_registry(ctx), dry_run=dry_run)
+    apply_configs(get_registry(ctx, require_trust=True), dry_run=dry_run)
 
 
 def _same(a: Path, b: Path) -> bool:

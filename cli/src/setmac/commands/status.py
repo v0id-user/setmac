@@ -26,7 +26,7 @@ def _check_one(tool):
 @click.pass_context
 def status_cmd(ctx, tool_id):
     """Check install status of tools. Omit TOOL_ID to check all."""
-    registry = get_registry(ctx)
+    registry = get_registry(ctx, require_trust=True)
 
     if tool_id:
         tool = registry.get(tool_id)

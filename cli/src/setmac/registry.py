@@ -159,7 +159,9 @@ class Registry:
     def for_profile(cls, spec: str | None = None) -> Registry:
         """The active profile (or `spec`) merged with the catalog."""
         resolved = profile.resolve(spec)
-        return cls(data=resolved.manifest, configs_roots=resolved.configs_roots, sensitive_ok=resolved.sensitive_ok)
+        registry = cls(data=resolved.manifest, configs_roots=resolved.configs_roots, sensitive_ok=resolved.sensitive_ok)
+        registry.resolved = resolved
+        return registry
 
     def problems(self) -> list[str]:
         """Manifest mistakes that would break installing, one message each."""
@@ -226,16 +228,28 @@ class Registry:
         return result
 
 
-def get_registry(ctx: click.Context | None = None) -> Registry:
+def get_registry(ctx: click.Context | None = None, require_trust: bool = False) -> Registry:
     """The registry for the active profile: `--profile`, SETMAC_PROFILE, the pointer, or minimal.
 
-    A profile that cannot be used is reported as a `profile_error` event and exits 3.
+    Commands that run anything from the profile (installs, check commands, dotfiles) pass
+    require_trust, so an unreviewed profile never runs. A profile that cannot be used is
+    reported as a `profile_error` event and exits 3.
     """
+    from setmac import trust  # imports the installers, which import this module
+
     root = ctx.find_root() if ctx else None
     flag = (root.obj or {}).get("profile") if root else None
     spec, _ = profile.active_spec(flag)
     try:
-        return Registry.for_profile(spec)
+        registry = Registry.for_profile(spec)
     except (profile.ProfileError, ManifestError) as e:
         emit_profile_error(spec, e.problems)
         raise SystemExit(EXIT_PROFILE) from e
+    if require_trust and not trust.is_trusted(registry.resolved):
+        problem = Problem(
+            "untrusted_profile", None, "profile",
+            f"'{spec}' has not been reviewed: run `setmac profile review {spec}`, then `setmac profile trust {spec}`",
+        )
+        emit_profile_error(spec, [problem])
+        raise SystemExit(EXIT_PROFILE)
+    return registry

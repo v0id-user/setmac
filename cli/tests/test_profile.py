@@ -39,7 +39,8 @@ def merged_ids(spec):
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
     """No real pointer file or SETMAC_PROFILE, and a throwaway home."""
-    monkeypatch.setattr(profile, "POINTER", tmp_path / "pointer")
+    monkeypatch.setattr(profile, "STATE_DIR", tmp_path / "state")
+    monkeypatch.setattr(profile, "POINTER", tmp_path / "state" / "active-profile")
     monkeypatch.delenv("SETMAC_PROFILE", raising=False)
     home = tmp_path / "home"
     home.mkdir()
@@ -90,10 +91,8 @@ def test_use_refuses_a_broken_profile_and_keeps_the_old_pointer(tmp_path):
     assert profile.read_pointer() == "web"
 
 
-def test_specs_that_are_not_supported_yet_or_ambiguous():
-    for spec, code in [("git@github.com:me/profile.git", "unsupported_spec"),
-                       ("https://example.com/p.git#abc", "unsupported_spec"),
-                       ("relative/dir", "relative_spec"),
+def test_specs_that_are_ambiguous_or_missing():
+    for spec, code in [("relative/dir", "relative_spec"),
                        ("no-such-starter", "profile_not_found")]:
         with pytest.raises(profile.ProfileError) as e:
             profile.locate(spec)
@@ -137,12 +136,18 @@ def test_extends_cycle_and_depth(tmp_path):
         profile.load_chain(str(a))
     assert e.value.problems[0].code == "extends_too_deep"
 
-    loop = write_profile(tmp_path / "loop", extends="./inner")
-    write_profile(loop / "inner", extends="./loop")
-    os.symlink(loop, loop / "inner" / "loop")
+    loop = write_profile(tmp_path / "loop", extends="./.")
     with pytest.raises(profile.ProfileError) as e:
         profile.load_chain(str(loop))
     assert e.value.problems[0].code == "extends_cycle"
+
+    # A symlink cannot lead a parent outside the profile (and so cannot loop back either).
+    escape = write_profile(tmp_path / "escape", extends="./inner")
+    write_profile(escape / "inner", extends="./up")
+    os.symlink(escape, escape / "inner" / "up")
+    with pytest.raises(profile.ProfileError) as e:
+        profile.load_chain(str(escape))
+    assert e.value.problems[0].code == "invalid_extends"
 
 
 def test_custom_tools_overrides_and_collisions(tmp_path):
