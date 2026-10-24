@@ -10,4 +10,6 @@ paths = [
   '''(^|/)uv\.lock$''',
   '''(^|/)Package\.resolved$''',
   '''^CHANGELOG\.md$''',
+  # The dotfile scanner's own tests: fake tokens, keys and JWTs it must detect.
+  '''^cli/tests/test_scanner\.py$''',
 ]
