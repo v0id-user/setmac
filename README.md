@@ -100,6 +100,16 @@ Dotfiles live in your own profile (`configs_dir`), never in setmac. `install all
 
 `configs capture` copies files from this Mac into your local profile folder, and refuses a starter, a pinned git checkout, or a clone of the public setmac repo. It scans everything first: tokens and private keys always block; emails, home paths, local host names and random-looking strings block unless you pass `--accept-medium`. Allow a reviewed finding with a `.setmac-scan-allow` line (`rule-id:path-glob`), and skip files with `.setmacignore` in the profile or `~/.config/setmac/ignore`.
 
+### Moving an old setup into a profile
+
+If your setup lived in an older setmac `tools.json` (or a fork of it), turn it into a private profile:
+
+```bash
+setmac profile export --repo path/to/old/setmac --from-ref <old-tag-or-branch> --out ~/my-setmac-profile --name me
+```
+
+Tools that are now in the catalog are added back by id; the rest become your `custom_tools`. Each dotfile is copied from this Mac when it exists here, else from the ref. Everything is scanned (secrets abort, personal data needs `--accept-reviewed`) and validated, and the folder gets `git init`; make the first commit yourself and push it to a private repository.
+
 ### Review and trust
 
 A profile you didn't get from setmac can run any shell command, so setmac runs nothing from it until you have reviewed it:

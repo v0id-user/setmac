@@ -28,6 +28,7 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 │   ├── gitprofile.py  # Git profiles: clone, pin (lock), content hash
 │   ├── trust.py       # Trust store and the review text
 │   ├── scanner.py     # Secret and personal-data scanner for dotfiles
+│   ├── export.py      # Old all-in-one manifest -> private profile folder
 │   ├── validate.py    # Manifest and config-path rules (structured problems)
 │   ├── commands/      # install, status, configs, brewfile, profile
 │   └── installers/    # brew, script, custom dispatchers
@@ -119,6 +120,10 @@ log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug
 - Every command gets its registry from `get_registry(ctx)` in `registry.py`; never build `Registry()` from the catalog in a command.
 - Config fields keep their old meaning: `source` is the file on the Mac (`~/...`), `target` is its copy under the profile's `configs_dir`. `validate.py` refuses paths outside home (symlinks resolved), `..`, and the sensitive locations unless listed in `sensitive_ok`.
 - Tests: `tests/test_profile.py` (resolution, merging, config paths, neutrality of `Resources/`) and `tests/test_gitprofile.py` (a local repo as the remote: pinning, trust, update, tampering).
+
+### Profile export (`export.py`, `profile export`)
+- `--from-ref REF` (repeatable) reads `Resources/tools.json` and `Resources/configs` from refs in `--repo`; catalog ids go to `tools.add` (their old dotfiles become `overrides`), everything else becomes `custom_tools` (dependencies that no longer exist are dropped). Dotfiles come from this Mac first (`--home`), else the first ref that has them.
+- Refuses an `--out` that is not empty, inside the `--repo` work tree, or in a clone of the public repo. Stages, scans (high aborts, medium needs `--accept-reviewed`), validates, runs `zsh -n` on any zshrc, then writes and `git init`s. It never commits.
 
 ### Dotfiles (`commands/configs.py`, `scanner.py`)
 - Only from the active profile (`Tool.configs_root`); there is no global configs folder. A config's id is its `target`.
