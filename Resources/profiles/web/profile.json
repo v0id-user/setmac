@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "name": "web",
-  "description": "minimal plus Node, Bun, Python and lazygit for web work",
+  "description": "minimal plus Node, Bun, pnpm, Python and lazygit for web work",
   "extends": "minimal",
   "tools": {
-    "add": ["node", "bun", "python", "uv", "lazygit"]
+    "add": ["node", "bun", "python", "uv", "lazygit", "pnpm"]
   }
 }

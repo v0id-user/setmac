@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "name": "backend",
-  "description": "minimal plus Go, Python, GnuPG and OpenSSH for services",
+  "description": "minimal plus Go, Python, kubectl, Helm, GnuPG and OpenSSH for services",
   "extends": "minimal",
   "tools": {
-    "add": ["go", "python", "uv", "lazygit", "gnupg", "openssh"]
+    "add": ["go", "python", "uv", "lazygit", "gnupg", "openssh", "kubernetes-cli", "helm", "yq"]
   }
 }
