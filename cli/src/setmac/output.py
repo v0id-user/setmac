@@ -91,6 +91,14 @@ def emit_manifest(profile: str, manifest: dict) -> None:
         print(line, flush=True)
 
 
+def emit_configs(configs: list[dict]) -> None:
+    """The profile's dotfiles from `configs list --json`: id, tool, source, target, is_dir,
+    and status (missing, identical or differs compared with the file on this Mac)."""
+    line = json.dumps({"type": "configs", "configs": configs})
+    with _lock:
+        print(line, flush=True)
+
+
 def emit_auth_required(tool: str, message: str):
     """Emit auth_required so the app can prompt for admin password."""
     emit("auth_required", tool=tool, message=message)

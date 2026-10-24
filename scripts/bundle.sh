@@ -43,12 +43,6 @@ for resource_bundle in "$BUILD_DIR"/*.bundle; do
     fi
 done
 
-# Copy bundled configs if they exist
-if [ -d "Resources/configs" ]; then
-    cp -R "Resources/configs" "$APP_BUNDLE/Contents/Resources/configs"
-    echo "    Embedded configs"
-fi
-
 # Info.plist comes from Resources/Info.plist with the release version stamped in.
 cp "Resources/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_BUNDLE/Contents/Info.plist"

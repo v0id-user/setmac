@@ -43,7 +43,8 @@ struct ConfigsView: View {
                 .help("Copy current dotfiles from system into the bundle")
 
                 Button("Apply Configs", systemImage: "arrow.up.doc") {
-                    Task { await runConfigsCommand(["configs", "apply"]) }
+                    // The button is the choice: replace every differing file, with backups.
+                    Task { await runConfigsCommand(["configs", "apply", "--yes"]) }
                 }
                 .disabled(state.isRunning)
                 .help("Copy bundled configs to system locations")
