@@ -1,13 +1,36 @@
 // Draws the setmac app icon: a grainy paper-to-graphite gradient with one small
 // line drawing. Variants: paper (laptop), fog (sunrise), sprout (seedling).
-// Usage: swift scripts/draw-icon.swift [variant] [output.png]   (writes 1024x1024)
+// Usage: swift scripts/draw-icon.swift [--seed N] [variant] [output.png]   (writes 1024x1024)
+// The grain comes from a seeded generator, so the same seed always gives the same pixels.
 
 import AppKit
 
-let args = CommandLine.arguments
-let variant = args.count > 1 ? args[1] : "sprout"
-let output = args.count > 2 ? args[2] : "Resources/icon.png"
+var seed: UInt64 = 0x5E7_AC00
+var positional: [String] = []
+var argIterator = CommandLine.arguments.dropFirst().makeIterator()
+while let arg = argIterator.next() {
+    if arg == "--seed" {
+        guard let value = argIterator.next(), let parsed = UInt64(value) else { fatalError("--seed needs a number") }
+        seed = parsed
+    } else {
+        positional.append(arg)
+    }
+}
+let variant = positional.count > 0 ? positional[0] : "sprout"
+let output = positional.count > 1 ? positional[1] : "Resources/icon.png"
 let size = 1024
+
+/// SplitMix64: tiny, fast, and stable across Swift versions, unlike the system generator.
+struct SplitMix64: RandomNumberGenerator {
+    var state: UInt64
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+}
 
 guard let ctx = CGContext(
     data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: size * 4,
@@ -110,7 +133,7 @@ ctx.strokePath()
 
 // Film grain: per-pixel luminance noise inside the body.
 let pixels = ctx.data!.bindMemory(to: UInt8.self, capacity: size * size * 4)
-var rng = SystemRandomNumberGenerator()
+var rng = SplitMix64(state: seed)
 for i in 0..<(size * size) {
     let o = i * 4
     let alpha = Int(pixels[o + 3])
