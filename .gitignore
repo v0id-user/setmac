@@ -30,3 +30,16 @@ cli/build/
 .vscode/
 .idea/
 cli/*.spec
+
+# Secrets
+.env
+.env.*
+*.p12
+*.pem
+
+# Agent worktrees and local settings
+.claude/
+
+# Generated at bundle time from Resources/icon.png
+Resources/AppIcon.iconset/
+Resources/AppIcon.icns
