@@ -6,7 +6,7 @@ macOS developer environment installer — automates reinstalling all dev tools, 
 
 - **SwiftUI macOS app** (SPM, macOS 26+) — native sidebar UI, streams live status/logs
 - **Python CLI backend** (`uv` + `click`) — does all actual installing via subprocess
-- **Shared `Resources/tools.json` manifest** — single source of truth for both GUI and CLI
+- **Public catalog `Resources/tools.json` + profiles** — a profile (`Resources/profiles/<name>/profile.json` or the user's own folder) picks catalog tools and adds its own; the CLI merges them and the app shows the CLI's merged list
 - SwiftUI spawns CLI via `Process`, reads JSON-line stdout, updates UI in real-time
 
 ## Project Structure
@@ -17,23 +17,26 @@ Sources/               # SwiftUI app (SPM target: "Setmac")
 ├── Models/            # InstallState.swift, ToolManifest.swift
 ├── Navigation/        # SidebarItem, SidebarView, DetailView
 ├── Views/             # OverviewView, CategoryDetailView, ToolCardView, etc.
-└── Services/          # CLIBridge.swift, ManifestLoader.swift
+└── Services/          # CLIBridge.swift, ManifestLoader.swift (decode error text, devRepoRoot)
 
 cli/                   # Python CLI (uv project: "setmac-cli")
 ├── src/setmac/
 │   ├── cli.py         # click entry point
 │   ├── output.py      # JSON-line protocol (thread-safe)
-│   ├── registry.py    # Loads tools.json, dependency graph
-│   ├── commands/      # install, status, configs
+│   ├── registry.py    # Merged manifest, dependency graph, get_registry(ctx)
+│   ├── profile.py     # Profile resolution, loading, merging with the catalog
+│   ├── validate.py    # Manifest and config-path rules (structured problems)
+│   ├── commands/      # install, status, configs, brewfile, profile
 │   └── installers/    # brew, script, custom dispatchers
 
 Resources/
-├── tools.json         # Tool manifest
-├── configs/           # Captured dotfiles
+├── tools.json         # Public tool catalog (no dotfiles, no personal tools)
+├── profiles/          # Starter profiles: minimal, web, backend, mobile
+├── configs/           # Old bundled dotfiles, leaving for private profiles
 ├── icon.png           # App icon source (1024x1024, drawn by scripts/draw-icon.swift)
 └── Assets.xcassets    # Accent color
 
-scripts/               # build-cli.sh, bundle.sh, draw-icon.swift, generate-icon.sh, dmg.sh
+scripts/               # build-cli.sh, bundle.sh, draw-icon.swift, generate-icon.sh, dmg.sh, classify-tools.py
 ```
 
 ### App icon
@@ -64,7 +67,7 @@ The bundled CLI binary is named `setmac-cli` (NOT `setmac`) to avoid case-insens
 ### JSON-line protocol
 CLI stdout emits one JSON object per line:
 ```json
-{"type": "status|progress|log|error|complete|skipped|auth_required|config_status|summary", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
+{"type": "status|progress|log|error|complete|skipped|auth_required|config_status|summary|manifest|profile_error", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
 ```
 Thread-safe via `threading.Lock()` in `output.py`.
 
@@ -72,6 +75,8 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - **skipped**: `{"type": "skipped", "tool": "tool-id", "status": "needs_admin"}`, sent right after the `error` line for a `requires_admin` tool that was not attempted because the password was refused or cancelled. The `error` line carries the message; the tool is also in the summary's `failed` list.
 - **summary**: Last line of an install run: `{"type": "summary", "message": "...", "failed": ["tool-id"]}`. The CLI exits 2 when anything failed, so the app treats exit 2 as a normal result, not a crash.
 - **config_status**: Emitted by `configs list` for bundled/system/missing status.
+- **manifest**: `{"type": "manifest", "profile": "web", "manifest": {...tools.json shape...}}` from `profile show --json`. The app loads its tool list this way at launch and on Retry.
+- **profile_error**: `{"type": "profile_error", "profile": "...", "message": "...", "problems": [{code, tool_id, field, message}]}` when the active profile cannot be used, followed by a plain `error` line without a tool. The CLI exits 3.
 - `cli/tests/fixtures/protocol.jsonl` pins the exact line of every event type (`test_protocol.py`). Add event types or fields; never rename or drop them.
 
 ### CLIBridge.swift
@@ -95,10 +100,18 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - Tests: `cd cli && uv run pytest`.
 
 ### Logging
-Uses `os.Logger` with subsystem `com.v0id.setmac`. Categories: CLIBridge, ManifestLoader, ContentView, InstallState, CategoryDetail, ConfigsView. View with:
+Uses `os.Logger` with subsystem `com.v0id.setmac`. Categories: CLIBridge, ContentView, InstallState, CategoryDetail, ConfigsView. View with:
 ```bash
 log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug
 ```
+
+### Profiles
+- Active profile: `--profile <spec>` (global option), then `SETMAC_PROFILE`, then the pointer file `~/Library/Application Support/setmac/active-profile` (written by `profile use`), then `minimal`. A spec is a starter name or an absolute/`~` path; git URLs come later.
+- `extends`: a bare name is a starter; a path inside the profile folder needs a slash (`./base`); at most 3 levels, no cycles, no `..`.
+- Merge: root profile first; `tools.add`/`remove` pick catalog ids, `custom_tools` add the profile's own (a catalog id clash is an error), `overrides` patch a tool (nested objects merge one level). Dependencies are pulled in; removing one that a selected tool needs is an error. `defaults`-method tools are in only when `macos_defaults.enabled`.
+- Every command gets its registry from `get_registry(ctx)` in `registry.py`; never build `Registry()` from the catalog in a command.
+- Config fields keep their old meaning: `source` is the file on the Mac (`~/...`), `target` is its copy under the profile's `configs_dir`. `validate.py` refuses paths outside home (symlinks resolved), `..`, and the sensitive locations unless listed in `sensitive_ok`.
+- Tests: `tests/test_profile.py` (resolution, merging, config paths, neutrality of `Resources/`).
 
 ### No hardcoded tools
 Everything is data-driven from `tools.json`. No tool names hardcoded in Swift or Python. Only `custom` install method needs dedicated installer code.
