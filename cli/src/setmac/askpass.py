@@ -58,6 +58,12 @@ class AskpassServer:
     def env(self) -> dict[str, str]:
         return {"SUDO_ASKPASS": self.helper_path}
 
+    def ensure_admin(self, tool: str | None = None) -> bool:
+        """Make sure admin steps can run, prompting once if needed. False if the user cancelled."""
+        if self._password is not None or sudo_ready():
+            return True
+        return self.password(tool) is not None
+
     def password(self, tool: str | None = None) -> str | None:
         """Return a verified password, prompting the user if needed. None if cancelled."""
         with self._lock:
@@ -98,6 +104,17 @@ class AskpassServer:
         shutil.rmtree(self._dir, ignore_errors=True)
         if self._password is not None:
             subprocess.run(["sudo", "-k"], capture_output=True)
+
+
+def sudo_ready() -> bool:
+    """True when sudo runs without asking: a cached ticket, or NOPASSWD as on CI runners."""
+    try:
+        result = subprocess.run(
+            ["sudo", "-n", "true"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
 
 
 def _read_password(tool: str | None, message: str) -> str:

@@ -49,6 +49,14 @@ def emit_complete(tool: str, version: str | None = None):
     emit("complete", tool=tool, status="installed", version=version)
 
 
+def emit_skipped(tool: str, reason: str):
+    """A tool that was not attempted. `status` names the reason, e.g. needs_admin.
+
+    Sent after the matching `error` line, which carries the human-readable message.
+    """
+    emit("skipped", tool=tool, status=reason)
+
+
 def emit_summary(message: str, failed: list[str]):
     """Final line of an install run. `failed` lists tool ids that failed or were skipped."""
     line = json.dumps({"type": "summary", "message": message, "failed": failed})
