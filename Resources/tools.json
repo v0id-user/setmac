@@ -884,28 +884,6 @@
       "install": { "method": "brew_formula", "target": "ollama" }
     },
     {
-      "id": "opencode",
-      "name": "opencode",
-      "description": "AI coding agent for the terminal",
-      "category": "cli-tools",
-      "icon": "chevron.left.forwardslash.chevron.right",
-      "icon_color": "indigo",
-      "depends_on": ["homebrew"],
-      "check": { "command": "command -v opencode", "version_command": "opencode --version 2>&1 | head -1" },
-      "install": { "method": "brew_formula", "target": "opencode" }
-    },
-    {
-      "id": "netbird",
-      "name": "NetBird",
-      "description": "WireGuard mesh VPN client",
-      "category": "cli-tools",
-      "icon": "network",
-      "icon_color": "cyan",
-      "depends_on": ["homebrew"],
-      "check": { "command": "command -v netbird", "version_command": "netbird version 2>&1" },
-      "install": { "method": "brew_formula", "target": "netbirdio/tap/netbird" }
-    },
-    {
       "id": "pnpm",
       "name": "pnpm",
       "description": "Fast Node package manager",
@@ -939,39 +917,6 @@
       "install": { "method": "brew_formula", "target": "cocoapods" }
     },
     {
-      "id": "brave-browser",
-      "name": "Brave",
-      "description": "Web browser",
-      "category": "applications",
-      "icon": "globe",
-      "icon_color": "orange",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Brave Browser.app" },
-      "install": { "method": "brew_cask", "target": "brave-browser" }
-    },
-    {
-      "id": "claude",
-      "name": "Claude",
-      "description": "Claude desktop app",
-      "category": "applications",
-      "icon": "sparkle",
-      "icon_color": "orange",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Claude.app" },
-      "install": { "method": "brew_cask", "target": "claude" }
-    },
-    {
-      "id": "chatgpt",
-      "name": "ChatGPT",
-      "description": "ChatGPT desktop app",
-      "category": "applications",
-      "icon": "bubble.left",
-      "icon_color": "green",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/ChatGPT.app" },
-      "install": { "method": "brew_cask", "target": "chatgpt" }
-    },
-    {
       "id": "docker-desktop",
       "name": "Docker Desktop",
       "description": "Containers",
@@ -982,18 +927,6 @@
       "check": { "path": "/Applications/Docker.app" },
       "install": { "method": "brew_cask", "target": "docker-desktop" },
       "post_install": "Open Docker once and accept its terms to start the engine."
-    },
-    {
-      "id": "cloudflare-warp",
-      "name": "Cloudflare WARP",
-      "description": "Cloudflare network client",
-      "category": "applications",
-      "icon": "shield",
-      "icon_color": "orange",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Cloudflare WARP.app" },
-      "install": { "method": "brew_cask", "target": "cloudflare-warp" },
-      "post_install": "Open WARP and sign in to your Zero Trust team if you use one."
     },
     {
       "id": "hoppscotch",
@@ -1029,107 +962,6 @@
       "install": { "method": "brew_cask", "target": "visual-studio-code" }
     },
     {
-      "id": "screen-studio",
-      "name": "Screen Studio",
-      "description": "Screen recordings",
-      "category": "applications",
-      "icon": "record.circle",
-      "icon_color": "red",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Screen Studio.app" },
-      "install": { "method": "brew_cask", "target": "screen-studio" },
-      "post_install": "Grant Screen Recording in System Settings > Privacy & Security."
-    },
-    {
-      "id": "telegram",
-      "name": "Telegram",
-      "description": "Messaging",
-      "category": "applications",
-      "icon": "paperplane.fill",
-      "icon_color": "cyan",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Telegram.app" },
-      "install": { "method": "brew_cask", "target": "telegram" }
-    },
-    {
-      "id": "lark",
-      "name": "Lark",
-      "description": "Work chat and docs",
-      "category": "applications",
-      "icon": "bird",
-      "icon_color": "blue",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/LarkSuite.app", "command": "[ -d /Applications/Lark.app ]" },
-      "install": { "method": "brew_cask", "target": "lark" }
-    },
-    {
-      "id": "spotify",
-      "name": "Spotify",
-      "description": "Music",
-      "category": "applications",
-      "icon": "music.note",
-      "icon_color": "green",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Spotify.app" },
-      "install": { "method": "brew_cask", "target": "spotify" }
-    },
-    {
-      "id": "thaw",
-      "name": "Thaw",
-      "description": "Menu bar manager",
-      "category": "applications",
-      "icon": "menubar.rectangle",
-      "icon_color": "gray",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Thaw.app" },
-      "install": { "method": "brew_cask", "target": "thaw" },
-      "post_install": "Open Thaw and grant Accessibility and Screen Recording."
-    },
-    {
-      "id": "portkiller",
-      "name": "PortKiller",
-      "description": "Find and free busy ports",
-      "category": "applications",
-      "icon": "bolt.horizontal",
-      "icon_color": "red",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/PortKiller.app" },
-      "install": { "method": "brew_cask", "target": "portkiller" }
-    },
-    {
-      "id": "libreoffice",
-      "name": "LibreOffice",
-      "description": "Office suite",
-      "category": "applications",
-      "icon": "doc.text",
-      "icon_color": "green",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/LibreOffice.app" },
-      "install": { "method": "brew_cask", "target": "libreoffice" }
-    },
-    {
-      "id": "godot",
-      "name": "Godot",
-      "description": "Game engine",
-      "category": "applications",
-      "icon": "gamecontroller",
-      "icon_color": "blue",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Godot.app" },
-      "install": { "method": "brew_cask", "target": "godot" }
-    },
-    {
-      "id": "steam",
-      "name": "Steam",
-      "description": "Games",
-      "category": "applications",
-      "icon": "gamecontroller.fill",
-      "icon_color": "gray",
-      "depends_on": ["homebrew"],
-      "check": { "path": "/Applications/Steam.app" },
-      "install": { "method": "brew_cask", "target": "steam" }
-    },
-    {
       "id": "rust",
       "name": "Rust",
       "description": "Rust toolchain (rustup, cargo) through mise",
@@ -1139,50 +971,6 @@
       "depends_on": ["mise"],
       "check": { "command": "command -v cargo", "version_command": "rustc --version 2>&1" },
       "install": { "method": "mise", "target": "rust@stable" }
-    },
-    {
-      "id": "cargo-tools",
-      "name": "Cargo tools",
-      "description": "sea-orm-cli and loco",
-      "category": "languages",
-      "icon": "hammer",
-      "icon_color": "orange",
-      "depends_on": ["rust"],
-      "check": { "command": "command -v sea-orm-cli && command -v loco" },
-      "install": { "method": "script", "script": "cargo install sea-orm-cli loco" }
-    },
-    {
-      "id": "uv-tools",
-      "name": "Python CLI tools",
-      "description": "ruff, vulture and claude-monitor through uv tool",
-      "category": "languages",
-      "icon": "wrench.and.screwdriver",
-      "icon_color": "purple",
-      "depends_on": ["uv"],
-      "check": { "command": "command -v ruff && command -v vulture && command -v claude-monitor" },
-      "install": { "method": "script", "script": "uv tool install ruff && uv tool install vulture && uv tool install claude-monitor" }
-    },
-    {
-      "id": "npm-globals",
-      "name": "npm globals",
-      "description": "squawk (Postgres migration linter)",
-      "category": "languages",
-      "icon": "shippingbox",
-      "icon_color": "green",
-      "depends_on": ["node"],
-      "check": { "command": "command -v squawk" },
-      "install": { "method": "script", "script": "npm install --global squawk-cli" }
-    },
-    {
-      "id": "vscode-extensions",
-      "name": "VS Code extensions",
-      "description": "13 extensions",
-      "category": "applications",
-      "icon": "puzzlepiece",
-      "icon_color": "blue",
-      "depends_on": ["visual-studio-code"],
-      "check": { "command": "installed=$(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --list-extensions); for e in anthropic.claude-code astro-build.astro-vscode bradlc.vscode-tailwindcss dbaeumer.vscode-eslint esbenp.prettier-vscode golang.go ms-python.debugpy ms-python.python ms-python.vscode-pylance ms-python.vscode-python-envs oxc.oxc-vscode rust-lang.rust-analyzer unifiedjs.vscode-mdx; do echo \"$installed\" | grep -qix \"$e\" || exit 1; done" },
-      "install": { "method": "script", "script": "for e in anthropic.claude-code astro-build.astro-vscode bradlc.vscode-tailwindcss dbaeumer.vscode-eslint esbenp.prettier-vscode golang.go ms-python.debugpy ms-python.python ms-python.vscode-pylance ms-python.vscode-python-envs oxc.oxc-vscode rust-lang.rust-analyzer unifiedjs.vscode-mdx; do \"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension \"$e\" --force; done" }
     }
   ]
 }
