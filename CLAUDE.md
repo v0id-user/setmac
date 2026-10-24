@@ -71,7 +71,7 @@ The bundled CLI binary is named `setmac-cli` (NOT `setmac`) to avoid case-insens
 ### JSON-line protocol
 CLI stdout emits one JSON object per line:
 ```json
-{"type": "status|progress|log|error|complete|skipped|auth_required|config_status|summary|manifest|profile_error", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
+{"type": "status|progress|log|error|complete|skipped|auth_required|config_status|summary|manifest|profile_error|profiles|review|configs|config_diff|backups", "tool": "tool-id", "message": "...", "status": "installed|not_installed", "version": "1.0"}
 ```
 Thread-safe via `threading.Lock()` in `output.py`.
 
@@ -80,7 +80,8 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - **summary**: Last line of an install run: `{"type": "summary", "message": "...", "failed": ["tool-id"]}`. The CLI exits 2 when anything failed, so the app treats exit 2 as a normal result, not a crash.
 - **config_status**: Emitted by `configs list` for bundled/system/missing status (kept for the app until it uses `configs`).
 - **configs**: `{"type": "configs", "configs": [{id, tool, source, target, is_dir, status}]}` from `configs list --json`; status is missing, identical or differs.
-- **manifest**: `{"type": "manifest", "profile": "web", "manifest": {...tools.json shape...}}` from `profile show --json`. The app loads its tool list this way at launch and on Retry.
+- **manifest**: `{"type": "manifest", "profile": "web", "manifest": {...tools.json shape...}, "spec", "trusted", "content_hash"}` from `profile show --json` (`content_hash` absent for starters). The app loads its tool list this way at launch and on Retry.
+- **profiles** (`profile list --json`): `active`, `source` (flag, env, pointer, default) and `starters` [{name, description}]. **review** (`profile review --json`): `spec`, `text`, `trusted`, `content_hash`. **config_diff** (`configs diff <id> --json`): `id`, `diff`. **backups** (`configs backups --json`): [{stamp, ids}], newest first.
 - **profile_error**: `{"type": "profile_error", "profile": "...", "message": "...", "problems": [{code, tool_id, field, message}]}` when the active profile cannot be used, followed by a plain `error` line without a tool. The CLI exits 3.
 - `cli/tests/fixtures/protocol.jsonl` pins the exact line of every event type (`test_protocol.py`). Add event types or fields; never rename or drop them.
 
@@ -103,6 +104,9 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - `cli/src/setmac/validate.py` holds the manifest rules (known method, required fields, unique ids, known deps, no cycles). `Registry` refuses to load a manifest with any problem; `validation_problems()` returns them as `{code, tool_id, field, message}`.
 - A tool whose dependency failed is skipped, not attempted. `install all` never applies dotfiles; `--with-configs` does, last, skipping configs of failed tools (asks per file, or `--yes`). `--no-configs` is a hidden no-op for old scripts.
 - Tests: `cd cli && uv run pytest`.
+
+### App flow (`ContentView.reload`)
+Reset state, `profile list --json`, `profile show --json`. If the profile was never chosen (`source` default) show the first-run sheet; if it is not trusted, `profile review --json` opens the review sheet and nothing else runs (status runs check commands); otherwise `status`. Trust runs `profile trust <spec> --hash <hash>`; choosing a profile runs `profile use <spec>`; both reload. The Profile screen switches starters, folders (NSOpenPanel) and git URLs. The Dotfiles screen lists `configs list --json` with checkboxes (none ticked), loads a diff per row on demand, applies only the ticked ids (`--only ... --yes`), and restores from a backups sheet; it reloads when the active spec changes.
 
 ### Logging
 Uses `os.Logger` with subsystem `com.v0id.setmac`. Categories: CLIBridge, ContentView, InstallState, CategoryDetail, ConfigsView. View with:
