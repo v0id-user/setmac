@@ -1,0 +1,13 @@
+title = "setmac gitleaks config"
+
+# Start from the default gitleaks rules and only add what this repo needs.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Lock files and the generated changelog hold hashes, not secrets"
+paths = [
+  '''(^|/)uv\.lock$''',
+  '''(^|/)Package\.resolved$''',
+  '''^CHANGELOG\.md$''',
+]
