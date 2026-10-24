@@ -7,6 +7,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from setmac.validate import Problem, validate_tools
+
 
 @dataclass
 class CheckSpec:
@@ -134,22 +136,12 @@ class Registry:
             raise ValueError("Invalid tools.json:\n  " + "\n  ".join(problems))
 
     def problems(self) -> list[str]:
-        """Manifest mistakes that would break install ordering."""
-        found: list[str] = []
-        seen: set[str] = set()
-        for t in self.tools:
-            if t.id in seen:
-                found.append(f"duplicate tool id '{t.id}'")
-            seen.add(t.id)
-            for dep in t.depends_on:
-                if dep not in self._by_id:
-                    found.append(f"'{t.id}' depends on unknown tool '{dep}'")
-        if not found:
-            ordered = {t.id for t in self.install_order()}
-            stuck = sorted(t.id for t in self.tools if t.id not in ordered)
-            if stuck:
-                found.append("dependency cycle among: " + ", ".join(stuck))
-        return found
+        """Manifest mistakes that would break installing, one message each."""
+        return [str(p) for p in self.validation_problems()]
+
+    def validation_problems(self) -> list[Problem]:
+        """Manifest mistakes as structured {code, tool_id, field, message} records."""
+        return validate_tools(self.tools)
 
     def get(self, tool_id: str) -> Tool | None:
         return self._by_id.get(tool_id)
