@@ -43,6 +43,7 @@ just release-verify
 ## Signing and notarization
 
 - Release commits and tags are GPG-signed in CI with a signing-only subkey stored in the `release` environment (`RELEASE_GPG_PRIVATE_KEY`, `RELEASE_GPG_PASSPHRASE`). Every release run waits for the maintainer's approval.
+- Release commits are pushed to `main` over SSH with the `RELEASE_DEPLOY_KEY` deploy key, the only bypass actor on the `main` ruleset.
 - To rotate the subkey, add a new signing subkey, give only it a new passphrase (`gpg-connect-agent "PASSWD <keygrip>" /bye`), export it with `gpg --armor --export-secret-subkeys <fingerprint>!` into the secret, delete its secret part locally, and re-upload the public key to GitHub.
 - Releases are ad-hoc signed by default.
 - Full signing/notarization activates automatically when these secrets exist:

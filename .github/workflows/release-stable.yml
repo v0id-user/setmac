@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Pushes go over SSH with this deploy key, the only actor allowed to bypass
+          # the main ruleset (GitHub Actions itself cannot be a bypass actor on a personal account).
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
