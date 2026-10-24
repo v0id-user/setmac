@@ -1,0 +1,42 @@
+name: Bug report
+description: Something setmac does wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open setmac
+        2. Install ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: setmac version
+      placeholder: e.g. 1.2.0 (About window or `setmac-cli --version`)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and chip
+      placeholder: e.g. macOS 26.1, Apple M3
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant output from `log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug` or the CLI.
+        Remove passwords, tokens, and personal paths before pasting.
+      render: text

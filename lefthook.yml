@@ -1,0 +1,11 @@
+# Git hooks. Install with: brew install lefthook gitleaks && lefthook install
+pre-commit:
+  commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --redact --no-banner
+
+pre-push:
+  commands:
+    cli-tests:
+      root: cli/
+      run: uv run pytest -q

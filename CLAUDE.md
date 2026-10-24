@@ -28,7 +28,7 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 │   └── installers/    # brew, script, custom dispatchers
 
 Resources/
-├── tools.json         # Tool manifest (~38 tools)
+├── tools.json         # Tool manifest
 ├── configs/           # Captured dotfiles
 └── Assets.xcassets    # App icon
 
@@ -106,6 +106,8 @@ chore: maintenance
 
 Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`. Use `feat!:` or `fix!:` for breaking changes.
 
+One logical change per commit: group related edits (all release pipeline files in one `feat`, all doc updates in one `docs`). Every commit and tag is GPG-signed.
+
 ## Release Pipeline
 - **Persistent rule**: Also follow `.cursor/rules/release-policy.mdc` as the project source of truth for release, versioning, signing, and Gatekeeper workaround policy.
 - **Project skill**: Use `.cursor/skills/setmac-release-ops/SKILL.md` when working on releases, packaging hotfixes, signing/notarization, or shipped-build failures.
@@ -123,5 +125,12 @@ Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `style`, `test`, `ci`. Use `f
 - No Xcode IDE — use CLI (`swift build`, `swift run`) and VS Code
 - SPM only — no .xcodeproj
 - macOS 26+ (Tahoe) with Liquid Glass UI
-- `Window` not `WindowGroup` (single-window app)
+- `Window` not `WindowGroup` (single-window app; `WindowGroup` opens duplicate windows)
 - Python CLI uses `uv` for dependency management
+
+### Don't
+
+- Don't use `/usr/bin/env` to find `uv` (GUI apps get a minimal PATH)
+- Don't use `bytes.lines` async iteration on pipes (it blocks in some contexts); use `readabilityHandler`
+- Don't name anything `setmac` in the build output dir (it collides with `Setmac` on case-insensitive APFS)
+- Don't suggest Xcode for anything

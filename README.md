@@ -4,7 +4,7 @@ Idempotent macOS setup automator. Reinstall all your dev tools, apps, and config
 
 ## What it does
 
-- Installs ~45 tools in dependency order: Command Line Tools (headless, no dialog), Rosetta, Homebrew, then everything else
+- Installs every tool in the manifest in dependency order: Command Line Tools (headless, no dialog), Rosetta, Homebrew, then everything else
 - Language runtimes (Node, Bun, Go) through [mise](https://mise.jdx.dev), App Store apps through [mas](https://github.com/mas-cli/mas)
 - Applies your macOS settings (Dock, Finder, Dark mode, trackpad) from `tools.json`, writing only what differs
 - Checks what's already installed and skips it, so a re-run resumes where the last one stopped
