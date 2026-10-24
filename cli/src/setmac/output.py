@@ -64,6 +64,33 @@ def emit_summary(message: str, failed: list[str]):
         print(line, flush=True)
 
 
+def emit_profile_error(profile: str, problems: list) -> None:
+    """The active profile cannot be used. `problems` are validate.Problem records.
+
+    Followed by a plain `error` line without a tool, which the app already shows.
+    """
+    message = f"Profile '{profile}' cannot be used: " + "; ".join(str(p) for p in problems)
+    payload = {
+        "type": "profile_error",
+        "profile": profile,
+        "message": message,
+        "problems": [
+            {"code": p.code, "tool_id": p.tool_id, "field": p.field, "message": p.message} for p in problems
+        ],
+    }
+    line = json.dumps(payload)
+    with _lock:
+        print(line, flush=True)
+    emit("error", message=message, status="error")
+
+
+def emit_manifest(profile: str, manifest: dict) -> None:
+    """The active profile merged with the catalog, as the app's tool list."""
+    line = json.dumps({"type": "manifest", "profile": profile, "manifest": manifest})
+    with _lock:
+        print(line, flush=True)
+
+
 def emit_auth_required(tool: str, message: str):
     """Emit auth_required so the app can prompt for admin password."""
     emit("auth_required", tool=tool, message=message)

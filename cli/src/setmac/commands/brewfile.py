@@ -2,7 +2,7 @@
 
 import click
 
-from setmac.registry import Registry
+from setmac.registry import Registry, get_registry
 
 
 def render_brewfile(registry: Registry) -> str:
@@ -29,9 +29,10 @@ def render_brewfile(registry: Registry) -> str:
 
 @click.command("brewfile")
 @click.option("--output", "-o", type=click.Path(dir_okay=False), help="Write to a file instead of stdout")
-def brewfile_cmd(output):
+@click.pass_context
+def brewfile_cmd(ctx, output):
     """Print a Brewfile for `brew bundle`, as a fallback to the app."""
-    text = render_brewfile(Registry())
+    text = render_brewfile(get_registry(ctx))
     if output:
         with open(output, "w") as f:
             f.write(text)

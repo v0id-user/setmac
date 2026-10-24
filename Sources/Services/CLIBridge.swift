@@ -12,7 +12,9 @@ private let exitSomeFailed: Int32 = 2
 
 /// Thread-safe line buffer that parses JSON lines and yields them to an AsyncStream as they arrive.
 private final class StreamingLineParser: @unchecked Sendable {
-    private var buffer = ""
+    /// Raw bytes, split on newlines before decoding: a pipe chunk can end in the middle of a
+    /// multi-byte character, and decoding chunk by chunk would drop that whole chunk.
+    private var buffer = Data()
     private let lock = NSLock()
     private let decoder = JSONDecoder()
     private let continuation: AsyncStream<CLIMessage>.Continuation
@@ -24,19 +26,15 @@ private final class StreamingLineParser: @unchecked Sendable {
     /// Append raw data from the pipe. Parses and yields complete JSON lines immediately.
     /// Never yields while holding the lock to avoid deadlock with terminationHandler's flush().
     func append(_ chunk: Data) {
-        guard let text = String(data: chunk, encoding: .utf8) else { return }
         var toYield: [CLIMessage] = []
         lock.lock()
-        buffer.append(text)
-
-        // Parse all complete lines
-        while let newlineRange = buffer.range(of: "\n") {
-            let line = String(buffer[buffer.startIndex..<newlineRange.lowerBound])
-            buffer.removeSubrange(buffer.startIndex...newlineRange.lowerBound)
+        buffer.append(chunk)
+        while let newline = buffer.firstIndex(of: 0x0A) {
+            let line = String(decoding: buffer[buffer.startIndex..<newline], as: UTF8.self)
+            buffer.removeSubrange(buffer.startIndex...newline)
 
             guard !line.isEmpty else { continue }
-            if let data = line.data(using: .utf8),
-               let msg = try? decoder.decode(CLIMessage.self, from: data) {
+            if let msg = try? decoder.decode(CLIMessage.self, from: Data(line.utf8)) {
                 toYield.append(msg)
             } else {
                 // Show stray output instead of hiding it in os.log.
@@ -54,13 +52,12 @@ private final class StreamingLineParser: @unchecked Sendable {
     /// Flush any remaining partial line (called at process exit).
     func flush() {
         lock.lock()
-        let remaining = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
-        buffer = ""
+        let remaining = String(decoding: buffer, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        buffer = Data()
         lock.unlock()
 
         guard !remaining.isEmpty,
-              let data = remaining.data(using: .utf8),
-              let msg = try? decoder.decode(CLIMessage.self, from: data)
+              let msg = try? decoder.decode(CLIMessage.self, from: Data(remaining.utf8))
         else {
             if !remaining.isEmpty {
                 log.warning("Unparseable trailing data: \(remaining, privacy: .public)")

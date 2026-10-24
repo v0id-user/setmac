@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "name": "mobile",
+  "description": "minimal plus Node and Bun for React Native and Expo",
+  "extends": "minimal",
+  "tools": {
+    "add": ["node", "bun", "lazygit"]
+  }
+}

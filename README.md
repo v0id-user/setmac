@@ -4,12 +4,13 @@ Idempotent macOS setup automator. Reinstall all your dev tools, apps, and config
 
 ## What it does
 
-- Installs every tool in the manifest in dependency order: Command Line Tools (headless, no dialog), Rosetta, Homebrew, then everything else
+- Installs the tools your **profile** picks from a public catalog, in dependency order: Command Line Tools (headless, no dialog), Homebrew, then everything else
+- Starter profiles (`minimal`, `web`, `backend`, `mobile`) or your own profile directory with your own tools and dotfiles
 - Language runtimes (Node, Bun, Go) through [mise](https://mise.jdx.dev), App Store apps through [mas](https://github.com/mas-cli/mas)
-- Applies your macOS settings (Dock, Finder, Dark mode, trackpad) from `tools.json`, writing only what differs
+- Applies macOS settings (Dock, Finder, Dark mode, trackpad) only when your profile turns them on, writing only what differs
 - Checks what's already installed and skips it, so a re-run resumes where the last one stopped
 - A failed tool skips the tools that depend on it; each run ends with a summary and a **Retry Failed** button
-- Restores dotfiles last, with timestamped backups in `~/.config/setmac-backup/`
+- Restores your profile's dotfiles last, with timestamped backups in `~/.config/setmac-backup/` (the public catalog ships none)
 - Asks for the admin password once per run, in a native sheet, and shares it with every installer
 - Lists the manual steps left after installing (permissions to grant, App Store sign-in)
 - Native SwiftUI app with Liquid Glass UI on macOS Tahoe; Python CLI backend does the work
@@ -21,14 +22,15 @@ setmac/
 ├── Sources/          # SwiftUI macOS app
 ├── cli/              # Python CLI (uv + click)
 ├── Resources/
-│   ├── tools.json    # Single source of truth — all tools defined here
-│   └── configs/      # Captured dotfiles
+│   ├── tools.json    # The public tool catalog
+│   ├── profiles/     # Starter profiles: minimal, web, backend, mobile
+│   └── configs/      # Old bundled dotfiles (moving to private profiles)
 ├── scripts/          # Build, bundle, DMG scripts
 ├── justfile          # All commands
 └── Package.swift     # SPM config
 ```
 
-Both the GUI and CLI read from the same `tools.json` manifest. The SwiftUI app spawns the CLI via `Process`, reads structured JSON output, and updates the UI in real-time.
+The CLI merges the active profile with the catalog; the app asks the CLI for that list (`setmac-cli profile show --json`) and shows exactly the tools the CLI installs. The SwiftUI app spawns the CLI via `Process`, reads structured JSON output, and updates the UI in real-time.
 
 ## Quick start
 
@@ -38,8 +40,11 @@ just dev
 
 # Or use the CLI directly
 cd cli && uv sync
+uv run setmac profile list    # Starter profiles and the active one
+uv run setmac profile use web # Choose a profile (or a path to your own)
 uv run setmac status          # Check what's installed
-uv run setmac install all     # Install everything
+uv run setmac install all --dry-run  # See what would be installed
+uv run setmac install all     # Install the profile's tools
 uv run setmac configs capture # Save current dotfiles
 uv run setmac configs apply   # Restore dotfiles on fresh Mac
 uv run setmac brewfile        # Print a Brewfile, for plain `brew bundle`
@@ -63,9 +68,32 @@ Installers run without a terminal, so `sudo` uses the `SUDO_ASKPASS` helper the 
 
 `"requires_admin": true` in tools.json marks tools that will ask.
 
+## Profiles
+
+A profile is a folder with a `profile.json`. setmac uses, in order: `--profile <spec>`, the `SETMAC_PROFILE` environment variable, the profile chosen with `setmac profile use`, then `minimal`. A spec is a starter name or an absolute or `~` path.
+
+```json
+{
+  "schema": 1,
+  "name": "me",
+  "extends": "web",
+  "tools": { "add": ["neovim", "tmux"], "remove": ["bun"] },
+  "custom_tools": [ { "id": "my-app", "name": "My App", "check": { "path": "/Applications/My App.app" }, "install": { "method": "brew_cask", "target": "my-app" } } ],
+  "overrides": { "git": { "post_install": "Run gh auth login" } },
+  "configs_dir": "configs",
+  "macos_defaults": { "enabled": false }
+}
+```
+
+- `extends`: a starter name, or a path inside the profile folder (`./base`). At most 3 levels.
+- `tools.add` / `tools.remove`: catalog tool ids. Dependencies come along; removing one that another tool needs is an error.
+- `custom_tools`: your own tools, in the catalog's format. They may not reuse a catalog id; use `overrides` to change a catalog tool.
+- `configs` on your tools: `source` is the file on the Mac (`~/...`), `target` is its copy under `configs_dir`. `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/Library/LaunchAgents` and `~/.config/gh` are refused unless listed in `sensitive_ok`.
+- `setmac profile validate <spec>` lists every problem; `setmac profile show <spec>` lists the tools.
+
 ## tools.json
 
-Every tool is defined in `Resources/tools.json` with:
+The public catalog. Every tool is defined in `Resources/tools.json` with:
 
 - **id** — unique identifier
 - **category** — essentials, cli-tools, applications, languages, standalone, configs, system
@@ -74,9 +102,7 @@ Every tool is defined in `Resources/tools.json` with:
 - **defaults** / **restart** — for the `defaults` method: `{domain, key, type, value}` settings and apps to restart after a change
 - **post_install** — a manual step to show after install
 - **depends_on** — tools that must be installed first
-- **configs** — associated dotfiles to capture/restore
-
-The manifest is designed to be extensible. Future plan: host your own `tools.json` and share setups.
+- **configs** — dotfiles to capture/restore (profiles only; the catalog ships none)
 
 ## Commands (just)
 
@@ -136,11 +162,14 @@ You can also Control-click the app and choose `Open`. This is only a temporary w
 
 ## Tools included
 
-**Essentials**: Xcode CLT, Homebrew
-**CLI**: git, gh, neovim, tmux, fzf, bat, eza, fd, ripgrep, starship, lazygit, btop, fastfetch, yazi, tree-sitter, gnupg, openssh, imagemagick
-**Apps**: Cursor, Claude Code, Ghostty, Raycast, Hammerspoon, Rectangle, Karabiner Elements
-**Languages**: Go, Node, Python, LuaJIT, Bun, NVM
-**Standalone**: Oh My Zsh, TPM, LazyVim, Pier
+The catalog (profiles pick from it):
+
+**Essentials**: Xcode CLT, Rosetta, Homebrew, mise, mas
+**CLI**: git, gh, neovim, tmux, just, fzf, bat, eza, fd, jq, ripgrep, starship, lazygit, btop, fastfetch, yazi, tree-sitter, gnupg, openssh, imagemagick
+**Apps**: Cursor, Claude Code, Ghostty, Raycast, Rectangle, Keynote, Pages, Numbers
+**Languages**: Go, Node, Python, uv, LuaJIT, Bun
+**Standalone**: Oh My Zsh, TPM
+**macOS settings**: Dock, Finder, Dark mode and trackpad defaults (off unless a profile enables them)
 
 ## License
 

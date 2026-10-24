@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "name": "minimal",
+  "description": "Git, GitHub CLI, mise and a handful of everyday command-line tools",
+  "tools": {
+    "add": ["git", "gh", "ripgrep", "fd", "bat", "eza", "fzf", "jq", "mise"]
+  }
+}

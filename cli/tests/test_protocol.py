@@ -8,6 +8,7 @@ understanding it. Add new event types or fields; don't rename or remove them.
 from pathlib import Path
 
 from setmac import output
+from setmac.validate import Problem
 
 FIXTURE = Path(__file__).parent / "fixtures" / "protocol.jsonl"
 
@@ -24,6 +25,8 @@ def emit_every_event():
     output.emit_auth_required("rosetta", "Admin password required for installation")
     output.emit_config_status("zsh", "zshrc", "~/.zshrc", "bundled+system")
     output.emit_summary("1 installed, 1 already set up, 1 failed: rosetta", failed=["rosetta"])
+    output.emit_profile_error("web", [Problem("unknown_tool", "nope", "tools.add", "profile 'web' adds unknown tool 'nope'")])
+    output.emit_manifest("minimal", {"version": "1.0.0", "name": "minimal", "description": "", "tools": []})
 
 
 def test_events_match_the_golden_fixture(capsys):

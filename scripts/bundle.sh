@@ -35,12 +35,6 @@ if [ ! -s "$APP_BUNDLE/Contents/Resources/AppIcon.icns" ]; then
 fi
 echo "    Embedded AppIcon.icns"
 
-# Copy tools.json manifest
-if [ -f "Resources/tools.json" ]; then
-    cp "Resources/tools.json" "$APP_BUNDLE/Contents/Resources/tools.json"
-    echo "    Embedded tools.json"
-fi
-
 # Copy SwiftPM resource bundles so packaged apps can resolve Bundle.module resources.
 for resource_bundle in "$BUILD_DIR"/*.bundle; do
     if [ -d "$resource_bundle" ]; then

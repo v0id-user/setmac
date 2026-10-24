@@ -43,7 +43,7 @@ enum ConfigStatus: String, Codable {
 
 // MARK: - CLI message (decoded from JSON-line output)
 
-struct CLIMessage: Codable {
+struct CLIMessage: Decodable {
     let type: String
     var tool: String? = nil
     var message: String? = nil
@@ -53,6 +53,31 @@ struct CLIMessage: Codable {
     var target: String? = nil
     /// Tool ids that failed or were skipped, on `summary` messages.
     var failed: [String]? = nil
+    /// The active profile merged with the catalog, on `manifest` messages.
+    var manifest: ToolManifest? = nil
+    /// Why a `manifest` message's manifest did not decode, so the app can say exactly what is wrong.
+    var manifestError: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case type, tool, message, status, version, source, target, failed, manifest
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        type = try c.decode(String.self, forKey: .type)
+        tool = try c.decodeIfPresent(String.self, forKey: .tool)
+        message = try c.decodeIfPresent(String.self, forKey: .message)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        version = try c.decodeIfPresent(String.self, forKey: .version)
+        source = try c.decodeIfPresent(String.self, forKey: .source)
+        target = try c.decodeIfPresent(String.self, forKey: .target)
+        failed = try c.decodeIfPresent([String].self, forKey: .failed)
+        do {
+            manifest = try c.decodeIfPresent(ToolManifest.self, forKey: .manifest)
+        } catch let error as DecodingError {
+            manifestError = ManifestLoader.describe(error)
+        }
+    }
 
     /// A plain log line, for CLI output that is not part of the protocol.
     init(log message: String) {
@@ -111,13 +136,14 @@ final class InstallState {
     }
 
     /// Load (or reload) the manifest, recording why it failed instead of leaving it empty.
-    func loadManifest() {
-        do {
-            manifest = try ManifestLoader.load()
-            loadError = nil
-        } catch {
-            manifest = nil
-            loadError = error.localizedDescription
+    /// The CLI merges the active profile with the catalog; the app shows exactly that list.
+    @MainActor
+    func loadManifest(with bridge: CLIBridge) async {
+        manifest = nil
+        loadError = nil
+        await run(["profile", "show", "--json"], with: bridge, timeout: 120)
+        if manifest == nil && loadError == nil {
+            loadError = lastError ?? "setmac-cli did not return a tool list."
         }
     }
 
@@ -221,6 +247,14 @@ final class InstallState {
     func applyMessage(_ msg: CLIMessage) {
         if msg.type == "error" && msg.tool == nil {
             lastError = msg.message
+        }
+        if msg.type == "manifest" {
+            if let manifest = msg.manifest {
+                self.manifest = manifest
+                log.info("Manifest for profile \(manifest.name, privacy: .public): \(manifest.tools.count) tools")
+            } else {
+                loadError = "The tool list is not valid: \(msg.manifestError ?? "it is missing")"
+            }
         }
         if msg.type == "summary" {
             lastSummary = msg.message

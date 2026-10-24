@@ -8,7 +8,7 @@ import click
 
 from setmac.installers.base import check_tool
 from setmac.output import emit_status
-from setmac.registry import Registry
+from setmac.registry import get_registry
 
 
 def _check_one(tool):
@@ -23,9 +23,10 @@ def _check_one(tool):
 
 @click.command("status")
 @click.argument("tool_id", required=False)
-def status_cmd(tool_id):
+@click.pass_context
+def status_cmd(ctx, tool_id):
     """Check install status of tools. Omit TOOL_ID to check all."""
-    registry = Registry()
+    registry = get_registry(ctx)
 
     if tool_id:
         tool = registry.get(tool_id)

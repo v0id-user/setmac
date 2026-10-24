@@ -7,7 +7,9 @@ refuses to load a manifest that has any.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from setmac.installers import METHODS, SELF_CHECKING
@@ -27,12 +29,17 @@ class Problem:
         return self.message
 
 
-def validate_tools(tools: list[Tool]) -> list[Problem]:
+# Dotfile locations a profile may only write to when it lists them in `sensitive_ok`.
+SENSITIVE = ("~/.ssh", "~/.gnupg", "~/.aws", "~/Library/LaunchAgents", "~/.config/gh")
+
+
+def validate_tools(tools: list[Tool], sensitive_ok: set[str] | frozenset[str] = frozenset()) -> list[Problem]:
     """All problems in a list of tools, in manifest order."""
     found: list[Problem] = []
     found += _unique_ids(tools)
     for tool in tools:
         found += _install_spec(tool)
+        found += _configs(tool, sensitive_ok)
     known = {t.id for t in tools}
     for tool in tools:
         for dep in tool.depends_on:
@@ -89,6 +96,67 @@ def _install_spec(tool: Tool) -> list[Problem]:
             f"'{tool.id}' ({method}) needs check.command or check.path",
         ))
     return found
+
+
+def _configs(tool: Tool, sensitive_ok: set[str] | frozenset[str]) -> list[Problem]:
+    """A config's `source` is where it lives on the Mac (~/...); its `target` is the
+    copy under the profile's configs_dir. Neither may escape where it belongs."""
+    found: list[Problem] = []
+    home = os.path.realpath(os.path.expanduser("~"))
+    for i, config in enumerate(tool.configs):
+        field = f"configs[{i}]"
+        source = config.source
+        if not source.startswith("~/") or os.path.normpath(source) != source or ".." in Path(source).parts:
+            found.append(Problem(
+                "invalid_config_source", tool.id, f"{field}.source",
+                f"'{tool.id}' config source must be a plain ~/ path, got '{source}'",
+            ))
+        else:
+            if _escapes(os.path.expanduser(source), home):
+                found.append(Problem(
+                    "config_outside_home", tool.id, f"{field}.source",
+                    f"'{tool.id}' config source '{source}' resolves outside your home directory",
+                ))
+            if _is_sensitive(source) and not any(_within(source, ok) for ok in sensitive_ok):
+                found.append(Problem(
+                    "sensitive_config", tool.id, f"{field}.source",
+                    f"'{tool.id}' writes to '{source}', a sensitive location; list it in the profile's sensitive_ok to allow it",
+                ))
+        target = config.target
+        if os.path.isabs(target) or ".." in Path(target).parts or not target:
+            found.append(Problem(
+                "invalid_config_target", tool.id, f"{field}.target",
+                f"'{tool.id}' config target must be a path inside the configs folder, got '{target}'",
+            ))
+        elif tool.configs_root is not None:
+            stored = tool.configs_root / target
+            if not stored.exists():
+                found.append(Problem(
+                    "missing_config_file", tool.id, f"{field}.target",
+                    f"'{tool.id}' config '{target}' is not in {tool.configs_root}",
+                ))
+            elif _escapes(str(stored), os.path.realpath(tool.configs_root)):
+                found.append(Problem(
+                    "config_outside_profile", tool.id, f"{field}.target",
+                    f"'{tool.id}' config '{target}' resolves outside {tool.configs_root}",
+                ))
+    return found
+
+
+def _within(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(prefix.rstrip("/") + "/")
+
+
+def _is_sensitive(source: str) -> bool:
+    return any(_within(source, s) for s in SENSITIVE)
+
+
+def _escapes(path: str, root: str) -> bool:
+    """Whether the longest existing part of `path`, with symlinks resolved, is outside `root`."""
+    existing = Path(path)
+    while not existing.exists() and existing != existing.parent:
+        existing = existing.parent
+    return not _within(os.path.realpath(existing), root)
 
 
 def _cycles(tools: list[Tool]) -> list[Problem]:

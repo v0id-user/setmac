@@ -145,7 +145,7 @@ def test_admin_tools_run_when_sudo_works_without_a_prompt(monkeypatch, tmp_path,
 
 def test_dry_run_lists_admin_tools_and_changes_nothing(monkeypatch, tmp_path):
     registry, root, child, plain = admin_manifest(tmp_path)
-    monkeypatch.setattr(install_mod, "Registry", lambda: registry)
+    monkeypatch.setattr(install_mod, "get_registry", lambda ctx: registry)
 
     result = CliRunner().invoke(install_mod.install_cmd, ["all", "--dry-run"])
 
