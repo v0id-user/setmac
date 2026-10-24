@@ -6,8 +6,18 @@ struct ToolManifest: Codable {
     let version: String
     let name: String
     let description: String
-    let author: String
+    let author: String?
+    /// Sidebar categories. When absent, the built-in set is used.
+    let categories: [CategoryDefinition]?
     let tools: [ToolDefinition]
+}
+
+struct CategoryDefinition: Codable {
+    let id: String
+    let name: String
+    let icon: String?
+    let color: String?
+    let order: Int?
 }
 
 struct ToolDefinition: Codable, Identifiable, Hashable {
@@ -39,8 +49,13 @@ struct ToolDefinition: Codable, Identifiable, Hashable {
         hasher.combine(id)
     }
 
-    var swiftColor: Color {
-        switch iconColor {
+    var swiftColor: Color { Color.named(iconColor) }
+}
+
+extension Color {
+    /// Colors by the names tools.json uses; unknown names are secondary.
+    static func named(_ name: String) -> Color {
+        switch name {
         case "blue": .blue
         case "orange": .orange
         case "green": .green
@@ -89,52 +104,47 @@ struct ConfigSpec: Codable {
     }
 }
 
-// MARK: - Category mapping
+// MARK: - Categories
 
-enum ToolCategory: String, CaseIterable, Identifiable {
-    case essentials
-    case cliTools = "cli-tools"
-    case applications
-    case languages
-    case standalone
-    case configs
-    case system
+/// A sidebar category. Comes from the manifest's `categories` list, or the built-in
+/// set when the manifest has none. Tools in a category nobody defined go to `other`.
+struct ToolCategory: Hashable, Identifiable {
+    let id: String
+    let displayName: String
+    let icon: String
+    let colorName: String
+    let order: Int?
 
-    var id: String { rawValue }
+    var color: Color { Color.named(colorName) }
 
-    var displayName: String {
-        switch self {
-        case .essentials: "Essentials"
-        case .cliTools: "CLI Tools"
-        case .applications: "Applications"
-        case .languages: "Languages"
-        case .standalone: "Standalone"
-        case .configs: "Configs"
-        case .system: "macOS Settings"
-        }
+    init(id: String, displayName: String, icon: String, colorName: String, order: Int? = nil) {
+        self.id = id
+        self.displayName = displayName
+        self.icon = icon
+        self.colorName = colorName
+        self.order = order
     }
 
-    var icon: String {
-        switch self {
-        case .essentials: "star.fill"
-        case .cliTools: "terminal"
-        case .applications: "macwindow"
-        case .languages: "chevron.left.forwardslash.chevron.right"
-        case .standalone: "puzzlepiece.extension"
-        case .configs: "gearshape.2"
-        case .system: "gearshape"
-        }
+    init(_ definition: CategoryDefinition) {
+        self.init(
+            id: definition.id,
+            displayName: definition.name,
+            icon: definition.icon ?? "square.grid.2x2",
+            colorName: definition.color ?? "gray",
+            order: definition.order
+        )
     }
 
-    var color: Color {
-        switch self {
-        case .essentials: .blue
-        case .cliTools: .green
-        case .applications: .purple
-        case .languages: .orange
-        case .standalone: .teal
-        case .configs: .gray
-        case .system: .secondary
-        }
-    }
+    static let builtIn: [ToolCategory] = [
+        ToolCategory(id: "essentials", displayName: "Essentials", icon: "star.fill", colorName: "blue"),
+        ToolCategory(id: "cli-tools", displayName: "CLI Tools", icon: "terminal", colorName: "green"),
+        ToolCategory(id: "applications", displayName: "Applications", icon: "macwindow", colorName: "purple"),
+        ToolCategory(id: "languages", displayName: "Languages", icon: "chevron.left.forwardslash.chevron.right", colorName: "orange"),
+        ToolCategory(id: "standalone", displayName: "Standalone", icon: "puzzlepiece.extension", colorName: "teal"),
+        ToolCategory(id: "configs", displayName: "Configs", icon: "gearshape.2", colorName: "gray"),
+        ToolCategory(id: "system", displayName: "macOS Settings", icon: "gearshape", colorName: "secondary"),
+    ]
+
+    /// Holds tools whose category is not defined, so they never disappear from the UI.
+    static let other = ToolCategory(id: "other", displayName: "Other", icon: "ellipsis.circle", colorName: "gray")
 }

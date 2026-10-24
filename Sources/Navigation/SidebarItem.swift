@@ -9,7 +9,7 @@ enum SidebarItem: Hashable, Identifiable {
     var id: String {
         switch self {
         case .overview: "overview"
-        case .category(let cat): "cat-\(cat.rawValue)"
+        case .category(let cat): "cat-\(cat.id)"
         case .configs: "configs"
         case .about: "about"
         }

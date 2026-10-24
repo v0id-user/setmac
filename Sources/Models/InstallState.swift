@@ -88,6 +88,8 @@ final class InstallState {
     private var justInstalled: Set<String> = []
     /// Most recent error not tied to a tool (CLI crash, launch failure).
     var lastError: String?
+    /// Why the manifest could not be loaded; the app shows it instead of an empty UI.
+    var loadError: String?
 
     /// Shown when CLI emits auth_required; user enters password in sheet.
     var pendingAuthRequest: AuthRequest?
@@ -108,19 +110,62 @@ final class InstallState {
         statuses[toolId] ?? .unknown
     }
 
-    func toolsForCategory(_ category: ToolCategory) -> [ToolDefinition] {
-        manifest?.tools.filter { $0.category == category.rawValue } ?? []
+    /// Load (or reload) the manifest, recording why it failed instead of leaving it empty.
+    func loadManifest() {
+        do {
+            manifest = try ManifestLoader.load()
+            loadError = nil
+        } catch {
+            manifest = nil
+            loadError = error.localizedDescription
+        }
     }
 
+    /// Forget everything learned from the CLI, e.g. before reloading the manifest.
+    func reset() {
+        statuses = [:]
+        logLines = []
+        currentTool = nil
+        lastSummary = nil
+        lastRunFailed = false
+        lastFailedIds = []
+        justInstalled = []
+        lastError = nil
+        configStatuses = [:]
+    }
+
+    /// Categories the manifest defines, or the built-in set when it defines none.
+    private var definedCategories: [ToolCategory] {
+        manifest?.categories?.map(ToolCategory.init) ?? ToolCategory.builtIn
+    }
+
+    func toolsForCategory(_ category: ToolCategory) -> [ToolDefinition] {
+        guard let tools = manifest?.tools else { return [] }
+        if category == .other {
+            let defined = Set(definedCategories.map(\.id))
+            return tools.filter { !defined.contains($0.category) }
+        }
+        return tools.filter { $0.category == category.id }
+    }
+
+    /// Categories that have tools, in `order` when given, else in manifest order,
+    /// with `Other` last for tools in a category nobody defined.
     var categories: [ToolCategory] {
         guard let manifest else { return [] }
+        let defined = Dictionary(definedCategories.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var seen: [ToolCategory] = []
+        var hasOther = false
         for tool in manifest.tools {
-            if let cat = ToolCategory(rawValue: tool.category), !seen.contains(cat) {
-                seen.append(cat)
+            if let category = defined[tool.category] {
+                if !seen.contains(category) { seen.append(category) }
+            } else {
+                hasOther = true
             }
         }
-        return seen
+        let ordered = seen.enumerated().sorted { a, b in
+            (a.element.order ?? Int.max, a.offset) < (b.element.order ?? Int.max, b.offset)
+        }.map(\.element)
+        return hasOther ? ordered + [.other] : ordered
     }
 
     var totalTools: Int {
@@ -206,6 +251,9 @@ final class InstallState {
                 log.error("\(tool, privacy: .public): error — \(msg.message ?? "Unknown error", privacy: .public)")
             case "log":
                 log.info("\(tool, privacy: .public): \(msg.message ?? "", privacy: .public)")
+            case "skipped":
+                // Follows the tool's error line, which already set its status and message.
+                log.info("\(tool, privacy: .public): skipped (\(msg.status ?? "", privacy: .public))")
             case "config_status":
                 if let target = msg.target, let statusStr = msg.status,
                    let status = ConfigStatus(rawValue: statusStr) {

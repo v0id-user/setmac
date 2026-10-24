@@ -36,7 +36,8 @@ struct CategoryDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Install All", systemImage: "arrow.down.circle") {
-                    Task { await state.run(["install", category.rawValue, "--category"], with: bridge) }
+                    // By id, so the Other bucket (no single CLI category) works too.
+                    Task { await state.run(["install"] + tools.map(\.id), with: bridge) }
                 }
                 .disabled(state.isRunning || allInstalled)
                 .help("Install all tools in this category")
