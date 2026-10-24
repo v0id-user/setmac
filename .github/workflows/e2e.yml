@@ -18,6 +18,9 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   fresh-mac:
     name: Install all on a fresh Mac
