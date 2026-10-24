@@ -22,10 +22,18 @@ if [ -f "cli/dist/setmac-cli" ]; then
     echo "    Embedded CLI binary"
 fi
 
-# Copy app icon if it exists
-if [ -f "Resources/AppIcon.icns" ]; then
-    cp "Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+# App icon: generated from Resources/icon.png on every bundle. A missing icon is a
+# broken release, not something to skip.
+if [ ! -f "Resources/icon.png" ]; then
+    echo "Error: Resources/icon.png is missing; the app would ship without an icon." >&2
+    exit 1
 fi
+bash scripts/generate-icon.sh "Resources/icon.png" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+if [ ! -s "$APP_BUNDLE/Contents/Resources/AppIcon.icns" ]; then
+    echo "Error: $APP_BUNDLE/Contents/Resources/AppIcon.icns is missing or empty." >&2
+    exit 1
+fi
+echo "    Embedded AppIcon.icns"
 
 # Copy tools.json manifest
 if [ -f "Resources/tools.json" ]; then
