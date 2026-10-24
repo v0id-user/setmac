@@ -36,7 +36,6 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 Resources/
 ├── tools.json         # Public tool catalog (no dotfiles, no personal tools)
 ├── profiles/          # Starter profiles: minimal, web, backend, mobile
-├── configs/           # Old dotfiles, unused and unbundled; deleted after the private profile exists
 ├── icon.png           # App icon source (1024x1024, drawn by scripts/draw-icon.swift)
 └── Assets.xcassets    # Accent color
 
@@ -56,7 +55,7 @@ just build             # swift build (incremental)
 just release           # swift build -c release
 just bundle            # .app bundle with embedded CLI + configs
 just status            # CLI: check all tool statuses
-just capture-configs   # CLI: snapshot current dotfiles
+just capture-configs   # CLI: copy dotfiles from this Mac into the active profile
 just                   # List all available recipes
 ```
 
@@ -130,7 +129,7 @@ log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug
 - `apply [--only ids] [--yes] [--dry-run]`: confirm per file on a TTY, else `--yes` is required. Replaced files are moved (never followed if symlinks) to `~/.config/setmac-backup/<time>/` with `manifest.json`; `restore <time|latest> [--only]` backs up the current state, restores, and removes files the apply created. Backup folder names never repeat.
 - `capture [ids] [--accept-medium]`: only into a local profile folder (not a starter, a git checkout, or a clone of the public repo); stages with `.setmacignore` + `~/.config/setmac/ignore`, scans, and writes nothing if anything blocks.
 - Scanner: high (GitHub/OpenAI/Anthropic/Slack/AWS tokens, private keys, JWTs, assigned secrets) always blocks; medium (emails, `/Users/<name>`, `*.local|lan|internal`, high-entropy strings) blocks capture unless accepted. `apply` blocks on high only. Allow with `.setmac-scan-allow` (`rule-id:path-glob`). Findings show a redacted snippet, never the value.
-- `Resources/configs` is the maintainer's old dotfiles, no longer read or bundled; it is deleted once the private profile holds them.
+- The public repo ships no dotfiles; the maintainer's live in a private profile repository (`archive/pre-profiles` keeps the old bundled copies).
 
 ### No hardcoded tools
 Everything is data-driven from `tools.json`. No tool names hardcoded in Swift or Python. Only `custom` install method needs dedicated installer code.

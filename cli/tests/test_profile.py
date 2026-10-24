@@ -248,9 +248,8 @@ def test_catalog_ships_no_dotfiles():
 
 
 def test_resources_hold_no_personal_data():
-    # Resources/configs still holds the maintainer's old dotfiles; they move to a private
-    # profile and are deleted with the opt-in dotfiles work, so they are not scanned yet.
-    scanned = [p for p in RESOURCES.rglob("*") if p.is_file() and "configs" not in p.relative_to(RESOURCES).parts
+    assert not (RESOURCES / "configs").exists(), "dotfiles belong in a profile, not in Resources"
+    scanned = [p for p in RESOURCES.rglob("*") if p.is_file()
                and p.suffix in {".json", ".plist", ".entitlements", ".md", ".txt"}]
     assert scanned
     for path in scanned:
