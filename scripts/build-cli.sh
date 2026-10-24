@@ -25,7 +25,6 @@ uv run pyinstaller \
     --distpath dist \
     --add-data "../Resources/tools.json:." \
     --add-data "../Resources/profiles:profiles" \
-    --add-data "../Resources/configs:configs" \
     src/setmac/__main__.py
 
 echo "==> CLI binary built at $DIST_DIR/setmac-cli"
