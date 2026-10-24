@@ -70,7 +70,7 @@ Installers run without a terminal, so `sudo` uses the `SUDO_ASKPASS` helper the 
 
 ## Profiles
 
-A profile is a folder with a `profile.json`. setmac uses, in order: `--profile <spec>`, the `SETMAC_PROFILE` environment variable, the profile chosen with `setmac profile use`, then `minimal`. A spec is a starter name or an absolute or `~` path.
+A profile is a folder with a `profile.json`. setmac uses, in order: `--profile <spec>`, the `SETMAC_PROFILE` environment variable, the profile chosen with `setmac profile use`, then `minimal`. A spec is a starter name, an absolute or `~` path, or a git URL with an optional `#branch`, `#tag` or `#sha` (for example `git@github.com:you/setmac-profile.git`).
 
 ```json
 {
@@ -90,6 +90,17 @@ A profile is a folder with a `profile.json`. setmac uses, in order: `--profile <
 - `custom_tools`: your own tools, in the catalog's format. They may not reuse a catalog id; use `overrides` to change a catalog tool.
 - `configs` on your tools: `source` is the file on the Mac (`~/...`), `target` is its copy under `configs_dir`. `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/Library/LaunchAgents` and `~/.config/gh` are refused unless listed in `sensitive_ok`.
 - `setmac profile validate <spec>` lists every problem; `setmac profile show <spec>` lists the tools.
+
+### Review and trust
+
+A profile you didn't get from setmac can run any shell command, so setmac runs nothing from it until you have reviewed it:
+
+```bash
+setmac profile review <spec>   # every install command, check, dotfile, admin tool and note, verbatim
+setmac profile trust <spec>    # trust exactly this content (asks; or pass --hash <content hash>)
+```
+
+Trust covers the exact files reviewed: editing a local profile, or a new commit in a git profile, needs a new review. A git profile is cloned with your own git credentials and pinned to one commit on first use; `setmac profile update <spec>` shows what changed and moves the pin only after you confirm. Starters are always trusted.
 
 ## tools.json
 

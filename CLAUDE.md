@@ -25,6 +25,8 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 │   ├── output.py      # JSON-line protocol (thread-safe)
 │   ├── registry.py    # Merged manifest, dependency graph, get_registry(ctx)
 │   ├── profile.py     # Profile resolution, loading, merging with the catalog
+│   ├── gitprofile.py  # Git profiles: clone, pin (lock), content hash
+│   ├── trust.py       # Trust store and the review text
 │   ├── validate.py    # Manifest and config-path rules (structured problems)
 │   ├── commands/      # install, status, configs, brewfile, profile
 │   └── installers/    # brew, script, custom dispatchers
@@ -106,12 +108,15 @@ log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug
 ```
 
 ### Profiles
-- Active profile: `--profile <spec>` (global option), then `SETMAC_PROFILE`, then the pointer file `~/Library/Application Support/setmac/active-profile` (written by `profile use`), then `minimal`. A spec is a starter name or an absolute/`~` path; git URLs come later.
-- `extends`: a bare name is a starter; a path inside the profile folder needs a slash (`./base`); at most 3 levels, no cycles, no `..`.
+- Active profile: `--profile <spec>` (global option), then `SETMAC_PROFILE`, then the pointer file `~/Library/Application Support/setmac/active-profile` (written by `profile use`), then `minimal`. A spec is a starter name, an absolute/`~` path, or a git URL with an optional `#ref`.
+- Git profiles (`gitprofile.py`): cloned with the system git (no prompts without a TTY), cached under `~/Library/Application Support/setmac/profiles/<slug>/<sha>/`, pinned by `profile.lock.json` (url, ref, sha, content hash). A moved branch changes nothing until `profile update`; a tampered cache or a different `#ref` is an error.
+- Trust (`trust.py`): non-starter profiles must be trusted for their exact content (dir path or url+sha, plus a SHA-256 of every file) in `trust.json`. `get_registry(ctx, require_trust=True)` is used by every command that runs profile code: install (including `--dry-run`), status (check commands are shell) and configs apply/capture. `profile show`, `review`, `validate`, `brewfile` and `configs list` do not need trust. Untrusted → `profile_error` with code `untrusted_profile`, exit 3.
+- `profile review` prints every install/check command verbatim, flags download-and-run (`curl | sh`), and lists dotfile locations, `sensitive_ok`, admin tools, taps and notes. `profile trust` / `update` confirm on a TTY or need `--hash <content hash>`.
+- `extends`: a bare name is a starter; a path inside the profile folder needs a slash (`./base`) and must resolve inside it (no symlink escape); at most 3 levels, no cycles, no `..`.
 - Merge: root profile first; `tools.add`/`remove` pick catalog ids, `custom_tools` add the profile's own (a catalog id clash is an error), `overrides` patch a tool (nested objects merge one level). Dependencies are pulled in; removing one that a selected tool needs is an error. `defaults`-method tools are in only when `macos_defaults.enabled`.
 - Every command gets its registry from `get_registry(ctx)` in `registry.py`; never build `Registry()` from the catalog in a command.
 - Config fields keep their old meaning: `source` is the file on the Mac (`~/...`), `target` is its copy under the profile's `configs_dir`. `validate.py` refuses paths outside home (symlinks resolved), `..`, and the sensitive locations unless listed in `sensitive_ok`.
-- Tests: `tests/test_profile.py` (resolution, merging, config paths, neutrality of `Resources/`).
+- Tests: `tests/test_profile.py` (resolution, merging, config paths, neutrality of `Resources/`) and `tests/test_gitprofile.py` (a local repo as the remote: pinning, trust, update, tampering).
 
 ### No hardcoded tools
 Everything is data-driven from `tools.json`. No tool names hardcoded in Swift or Python. Only `custom` install method needs dedicated installer code.

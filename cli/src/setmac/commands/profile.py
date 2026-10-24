@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import click
 
-from setmac import profile
+from setmac import gitprofile, profile, trust
 from setmac.output import emit_manifest, emit_profile_error
 from setmac.registry import EXIT_PROFILE, ManifestError, Registry
 
@@ -20,8 +21,30 @@ def _spec(ctx: click.Context, spec: str | None) -> str:
 
 def _resolve(spec: str) -> tuple[profile.Resolved, Registry]:
     resolved = profile.resolve(spec)
-    registry = Registry(data=resolved.manifest, configs_roots=resolved.configs_roots, sensitive_ok=resolved.sensitive_ok)
-    return resolved, registry
+    return resolved, _registry(resolved)
+
+
+def _registry(resolved: profile.Resolved) -> Registry:
+    return Registry(data=resolved.manifest, configs_roots=resolved.configs_roots, sensitive_ok=resolved.sensitive_ok)
+
+
+def _resolve_or_exit(spec: str) -> tuple[profile.Resolved, Registry]:
+    try:
+        return _resolve(spec)
+    except (profile.ProfileError, ManifestError) as e:
+        emit_profile_error(spec, e.problems)
+        raise SystemExit(EXIT_PROFILE) from e
+
+
+def _confirm(question: str, expected_hash: str | None, actual_hash: str) -> None:
+    """Ask on a terminal; without one, require the content hash the user reviewed."""
+    if expected_hash is not None:
+        if expected_hash != actual_hash:
+            raise click.ClickException(f"the profile's content is {actual_hash}, not {expected_hash}; review it again")
+        return
+    if not sys.stdin.isatty():
+        raise click.ClickException("no terminal to confirm on: pass --hash with the content hash `profile review` printed")
+    click.confirm(question, abort=True)
 
 
 @click.group("profile")
@@ -71,13 +94,11 @@ def show(ctx: click.Context, spec: str | None, as_json: bool):
 @click.argument("spec")
 def use(spec: str):
     """Make SPEC the active profile (a starter name or a profile directory)."""
-    try:
-        resolved, registry = _resolve(spec)
-    except (profile.ProfileError, ManifestError) as e:
-        emit_profile_error(spec, e.problems)
-        raise SystemExit(EXIT_PROFILE) from e
+    resolved, registry = _resolve_or_exit(spec)
     profile.write_pointer(spec)
     click.echo(f"Active profile is now {resolved.profile.name} ({len(registry.tools)} tools).")
+    if not trust.is_trusted(resolved):
+        click.echo(f"It is not trusted yet: run `setmac profile review {spec}`, then `setmac profile trust {spec}`.")
 
 
 @profile_cmd.command("validate")
@@ -104,3 +125,75 @@ def validate(ctx: click.Context, spec: str | None, as_json: bool):
         click.echo(f"{spec}: no problems")
     if problems:
         raise SystemExit(1)
+
+
+@profile_cmd.command("review")
+@click.argument("spec", required=False)
+@click.pass_context
+def review(ctx: click.Context, spec: str | None):
+    """Print everything a profile would run or write, verbatim."""
+    spec = _spec(ctx, spec)
+    resolved, registry = _resolve_or_exit(spec)
+    click.echo(trust.review(resolved, registry))
+    click.echo("")
+    if trust.is_trusted(resolved):
+        click.echo("Trusted.")
+    else:
+        click.echo(f"Not trusted yet. To trust exactly this content: setmac profile trust {spec}")
+
+
+@profile_cmd.command("trust")
+@click.argument("spec", required=False)
+@click.option("--hash", "expected", metavar="CONTENT_HASH", help="Trust only this exact content (needed without a terminal)")
+@click.pass_context
+def trust_profile(ctx: click.Context, spec: str | None, expected: str | None):
+    """Allow setmac to run this profile's commands and write its dotfiles."""
+    spec = _spec(ctx, spec)
+    resolved, registry = _resolve_or_exit(spec)
+    ident = trust.identity(resolved)
+    if ident is None:
+        click.echo(f"{spec} is a bundled starter; it is always trusted.")
+        return
+    if trust.is_trusted(resolved):
+        click.echo(f"{spec} is already trusted.")
+        return
+    if expected is None and sys.stdin.isatty():
+        click.echo(trust.review(resolved, registry) + "\n")
+    _confirm("Trust this profile?", expected, ident["content_hash"])
+    trust.record(resolved)
+    click.echo(f"Trusted {spec} (content {ident['content_hash'][:12]}).")
+
+
+@profile_cmd.command("update")
+@click.argument("spec", required=False)
+@click.option("--hash", "expected", metavar="CONTENT_HASH", help="Accept only this exact new content (needed without a terminal)")
+@click.pass_context
+def update(ctx: click.Context, spec: str | None, expected: str | None):
+    """Move a git profile to the latest commit of its ref (or SPEC's #ref), after review."""
+    spec = _spec(ctx, spec)
+    if not gitprofile.is_git_url(spec):
+        raise click.ClickException(f"{spec} is not a git profile; edit the folder and run `setmac profile trust` again")
+    try:
+        path, candidate, current = gitprofile.fetch_latest(spec, profile.STATE_DIR)
+        located = profile.Located(path, "git", spec, candidate)
+        resolved = profile.merge(profile.chain_at(located), json.loads(profile.catalog_path().read_text()), located)
+        registry = _registry(resolved)
+    except gitprofile.GitProfileError as e:
+        emit_profile_error(spec, [e.problem])
+        raise SystemExit(EXIT_PROFILE) from e
+    except (profile.ProfileError, ManifestError) as e:
+        emit_profile_error(spec, e.problems)
+        raise SystemExit(EXIT_PROFILE) from e
+    if current and current.sha == candidate.sha:
+        click.echo(f"{candidate.url} is up to date at {candidate.sha[:12]}.")
+        return
+    click.echo(f"{candidate.url}: {current.sha[:12] if current else '(not locked)'} -> {candidate.sha[:12]}")
+    if current:
+        click.echo(gitprofile.diff_stat(profile.STATE_DIR, candidate.url, current.sha, candidate.sha))
+    click.echo("")
+    if expected is None and sys.stdin.isatty():
+        click.echo(trust.review(resolved, registry) + "\n")
+    _confirm("Move the lock to this commit and trust it?", expected, candidate.content_hash)
+    gitprofile.write_lock(gitprofile.cache_root(profile.STATE_DIR, candidate.url), candidate)
+    trust.record(resolved)
+    click.echo(f"Locked {candidate.url} to {candidate.sha[:12]} and trusted it.")

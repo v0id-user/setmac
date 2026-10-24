@@ -10,7 +10,9 @@ Which profile is active, first match wins:
   3. the pointer file written by `setmac profile use`
   4. the built-in `minimal` starter
 
-A spec is a starter name (`web`), or an absolute or `~` path to a profile directory.
+A spec is a starter name (`web`), an absolute or `~` path to a profile directory, or a
+git URL with an optional `#<branch, tag or sha>` (see gitprofile.py). Profiles that are
+not bundled starters must be trusted before setmac runs anything from them (trust.py).
 """
 
 from __future__ import annotations
@@ -22,13 +24,15 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from setmac import gitprofile
 from setmac.validate import Problem
 
 SCHEMA = 1
 DEFAULT_PROFILE = "minimal"
 # How many `extends` hops a profile may take before it reaches its root.
 MAX_EXTENDS = 3
-POINTER = Path(os.path.expanduser("~/Library/Application Support/setmac/active-profile"))
+STATE_DIR = Path(os.path.expanduser("~/Library/Application Support/setmac"))
+POINTER = STATE_DIR / "active-profile"
 
 PROFILE_KEYS = {
     "schema", "name", "description", "extends", "tools", "overrides", "custom_tools",
@@ -64,10 +68,25 @@ class Profile:
 
 
 @dataclass
+class Located:
+    """Where a spec points: a bundled starter, a local directory, or a pinned git checkout."""
+
+    path: Path
+    kind: str  # "starter", "dir" or "git"
+    spec: str
+    lock: gitprofile.Lock | None = None
+
+    @property
+    def bundled(self) -> bool:
+        return self.kind == "starter"
+
+
+@dataclass
 class Resolved:
     """A profile merged with the catalog: the manifest the CLI and the app use."""
 
     chain: list[Profile]
+    source: Located
     manifest: dict
     # Where each tool's config files live, for tools whose configs come from a profile.
     configs_roots: dict[str, Path] = field(default_factory=dict)
@@ -130,14 +149,16 @@ def write_pointer(spec: str) -> None:
     POINTER.write_text(spec + "\n")
 
 
-def _is_git_url(spec: str) -> bool:
-    return "://" in spec or spec.startswith("git@") or spec.split("#")[0].endswith(".git")
-
-
-def locate(spec: str) -> tuple[Path, bool]:
-    """The directory a spec points at, and whether it is a bundled starter."""
-    if _is_git_url(spec):
-        raise ProfileError([Problem("unsupported_spec", None, "profile", f"git profiles are not supported yet: {spec}")])
+def locate(spec: str) -> Located:
+    """The directory a spec points at. A git spec is cloned and pinned on first use."""
+    if gitprofile.is_git_url(spec):
+        try:
+            path, lock = gitprofile.checkout(spec, STATE_DIR)
+        except gitprofile.GitProfileError as e:
+            raise ProfileError([e.problem]) from e
+        if not (path / "profile.json").is_file():
+            raise ProfileError([Problem("profile_not_found", None, "profile", f"{spec} has no profile.json at its root")])
+        return Located(path, "git", spec, lock)
     if "/" in spec or spec.startswith("~"):
         path = Path(os.path.expanduser(spec))
         if not path.is_absolute():
@@ -150,7 +171,7 @@ def locate(spec: str) -> tuple[Path, bool]:
         known = ", ".join(p.name for p in starters()) or "none"
         what = f"no profile.json in {path}" if not bundled else f"no starter profile named '{spec}' (starters: {known})"
         raise ProfileError([Problem("profile_not_found", None, "profile", what)])
-    return path.resolve(), bundled
+    return Located(path.resolve(), "starter" if bundled else "dir", spec)
 
 
 # ─── Loading ──────────────────────────────────────────────────
@@ -214,11 +235,16 @@ def _str_list(value: object) -> bool:
     return isinstance(value, list) and all(isinstance(v, str) for v in value)
 
 
-def load_chain(spec: str) -> list[Profile]:
-    """The profile and the profiles it extends, root first."""
-    root, bundled = locate(spec)
-    chain = [load(root, bundled)]
-    seen = {root}
+def load_chain(spec: str) -> tuple[list[Profile], Located]:
+    """The profile and the profiles it extends (root first), and where the spec points."""
+    located = locate(spec)
+    return chain_at(located), located
+
+
+def chain_at(located: Located) -> list[Profile]:
+    """The profile at `located` and the profiles it extends, root first."""
+    chain = [load(located.path, located.bundled)]
+    seen = {located.path}
     while chain[0].extends:
         child = chain[0]
         if len(chain) > MAX_EXTENDS:
@@ -235,10 +261,13 @@ def load_chain(spec: str) -> list[Profile]:
 def _locate_parent(child: Profile) -> tuple[Path, bool]:
     ref = child.extends
     if "/" not in ref:
-        return locate(ref)  # a starter
+        starter = locate(ref)
+        return starter.path, starter.bundled
     if os.path.isabs(ref) or ref.startswith("~") or ".." in Path(ref).parts:
         raise ProfileError([Problem("invalid_extends", None, "extends", f"'{child.name}' extends '{ref}': use a starter name or a path inside the profile")])
     path = (child.root / ref).resolve()
+    if not path.is_relative_to(child.root.resolve()):
+        raise ProfileError([Problem("invalid_extends", None, "extends", f"'{child.name}' extends '{ref}', which resolves outside the profile")])
     if not (path / "profile.json").is_file():
         raise ProfileError([Problem("profile_not_found", None, "extends", f"'{child.name}' extends '{ref}', which has no profile.json")])
     return path, child.bundled
@@ -251,13 +280,13 @@ def resolve(spec: str | None = None, catalog: dict | None = None) -> Resolved:
     """Load the profile for `spec` (or the active one) and merge it with the catalog."""
     if spec is None:
         spec, _ = active_spec()
-    chain = load_chain(spec)
+    chain, located = load_chain(spec)
     if catalog is None:
         catalog = json.loads(catalog_path().read_text())
-    return merge(chain, catalog)
+    return merge(chain, catalog, located)
 
 
-def merge(chain: list[Profile], catalog: dict) -> Resolved:
+def merge(chain: list[Profile], catalog: dict, source: Located) -> Resolved:
     """Apply each profile in the chain, root first, to a selection from the catalog."""
     catalog_tools = {t["id"]: t for t in catalog.get("tools", [])}
     problems: list[Problem] = []
@@ -356,7 +385,7 @@ def merge(chain: list[Profile], catalog: dict) -> Resolved:
         manifest["author"] = catalog["author"]
     if categories:
         manifest["categories"] = list(categories.values())
-    return Resolved(chain=chain, manifest=manifest, configs_roots=configs_roots, sensitive_ok=sensitive_ok)
+    return Resolved(chain=chain, source=source, manifest=manifest, configs_roots=configs_roots, sensitive_ok=sensitive_ok)
 
 
 def _merge_patch(base: dict, patch: dict) -> dict:
