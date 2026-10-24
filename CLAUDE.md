@@ -30,10 +30,14 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 Resources/
 ├── tools.json         # Tool manifest (~38 tools)
 ├── configs/           # Captured dotfiles
-└── Assets.xcassets    # App icon
+├── icon.png           # App icon source (1024x1024, drawn by scripts/draw-icon.swift)
+└── Assets.xcassets    # Accent color
 
-scripts/               # build-cli.sh, bundle.sh, generate-icon.sh, dmg.sh
+scripts/               # build-cli.sh, bundle.sh, draw-icon.swift, generate-icon.sh, dmg.sh
 ```
+
+### App icon
+`Resources/icon.png` is the only committed icon. `scripts/bundle.sh` turns it into `Contents/Resources/AppIcon.icns` (via `generate-icon.sh`, standard 10-image iconset) and fails if it is missing. `Info.plist` names it with `CFBundleIconFile` only: there is no `Assets.car` because Command Line Tools have no `actool`. Under `swift run` the app sets its Dock icon from the SwiftPM copy of `icon.png`. `just verify-icon` checks a bundle; `release-verify` runs it on the app and inside the DMG.
 
 ## Key Commands
 
