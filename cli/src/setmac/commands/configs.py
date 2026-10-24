@@ -25,7 +25,7 @@ from pathlib import Path
 import click
 
 from setmac import scanner
-from setmac.output import emit_config_status, emit_configs, emit_error, emit_log
+from setmac.output import emit_backups, emit_config_diff, emit_config_status, emit_configs, emit_error, emit_log
 from setmac.registry import Registry, Tool, get_registry
 
 # Files capture leaves out, so they never count as a difference either.
@@ -183,13 +183,17 @@ def list_configs(ctx, as_json):
 
 @configs_cmd.command("diff")
 @click.argument("config_id")
+@click.option("--json", "as_json", is_flag=True, help="Print a `config_diff` event")
 @click.pass_context
-def diff(ctx, config_id):
+def diff(ctx, config_id, as_json):
     """Show how the file on this Mac differs from the profile's copy."""
     entry = _select(entries(get_registry(ctx)), config_id)[0]
     if entry.stored is None:
         raise click.ClickException(f"{config_id} has no copy in the profile")
     text = _diff_text(entry.live, entry.stored, entry.source, f"profile/{entry.target}")
+    if as_json:
+        emit_config_diff(config_id, text)
+        return
     click.echo(text or f"{entry.source} matches the profile.", nl=not text)
 
 
@@ -282,9 +286,14 @@ def apply_configs(
 
 
 @configs_cmd.command("backups")
-def backups():
+@click.option("--json", "as_json", is_flag=True, help="Print a `backups` event")
+def backups(as_json):
     """List the backups that `configs apply` and `configs restore` made."""
     found = sorted(backup_root().glob("*/manifest.json"), reverse=True)
+    if as_json:
+        emit_backups([{"stamp": p.parent.name, "ids": [e["id"] for e in json.loads(p.read_text())["entries"]]}
+                      for p in found])
+        return
     if not found:
         click.echo("No backups.")
     for path in found:

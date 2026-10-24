@@ -378,7 +378,7 @@ def merge(chain: list[Profile], catalog: dict, source: Located) -> Resolved:
     manifest = {
         "version": catalog.get("version", "0.0.0"),
         "name": profile.name,
-        "description": profile.data.get("description", catalog.get("description", "")),
+        "description": profile.data.get("description", ""),
         "tools": tools,
     }
     if catalog.get("author"):

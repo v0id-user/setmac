@@ -24,7 +24,7 @@ struct AboutView: View {
             }
 
             Section("About") {
-                Text("Automates setting up a fresh macOS with all your developer tools, apps, and configs. Reads from a tools.json manifest that defines what to install and how.")
+                Text("Sets up a Mac from a profile: a starter, or your own profile that picks tools from the public catalog and adds its own apps and dotfiles. Nothing from a profile runs until you have reviewed it, and dotfiles are only replaced when you choose them.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -34,7 +34,7 @@ struct AboutView: View {
                 LabeledContent("Architecture", value: Self.architecture)
                 LabeledContent("UI", value: "SwiftUI + Liquid Glass")
                 LabeledContent("Backend", value: "Python CLI (uv)")
-                LabeledContent("Manifest", value: "tools.json")
+                LabeledContent("Tools", value: "Profiles over a public catalog")
             }
         }
         .formStyle(.grouped)
