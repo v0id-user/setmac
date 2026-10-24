@@ -5,9 +5,10 @@ struct AboutView: View {
         Form {
             Section {
                 VStack(spacing: 8) {
-                    Image(systemName: "wrench.and.screwdriver")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.tint)
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 96, height: 96)
+                        .accessibilityHidden(true)
                     Text("setmac")
                         .font(.title)
                         .fontWeight(.bold)

@@ -16,6 +16,13 @@ struct SetmacApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        // A packaged app gets its icon from AppIcon.icns. Under `swift run` there is no
+        // bundle, so load icon.png from the SwiftPM resources instead of the generic icon.
+        if Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") == nil,
+           let url = Bundle.module.url(forResource: "icon", withExtension: "png"),
+           let image = NSImage(contentsOf: url) {
+            NSApp.applicationIconImage = image
+        }
         NSApp.activate()
     }
 
