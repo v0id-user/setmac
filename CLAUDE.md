@@ -27,6 +27,7 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 │   ├── profile.py     # Profile resolution, loading, merging with the catalog
 │   ├── gitprofile.py  # Git profiles: clone, pin (lock), content hash
 │   ├── trust.py       # Trust store and the review text
+│   ├── scanner.py     # Secret and personal-data scanner for dotfiles
 │   ├── validate.py    # Manifest and config-path rules (structured problems)
 │   ├── commands/      # install, status, configs, brewfile, profile
 │   └── installers/    # brew, script, custom dispatchers
@@ -34,7 +35,7 @@ cli/                   # Python CLI (uv project: "setmac-cli")
 Resources/
 ├── tools.json         # Public tool catalog (no dotfiles, no personal tools)
 ├── profiles/          # Starter profiles: minimal, web, backend, mobile
-├── configs/           # Old bundled dotfiles, leaving for private profiles
+├── configs/           # Old dotfiles, unused and unbundled; deleted after the private profile exists
 ├── icon.png           # App icon source (1024x1024, drawn by scripts/draw-icon.swift)
 └── Assets.xcassets    # Accent color
 
@@ -76,7 +77,8 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - **auth_required**: Sent at most once per run (it is cached after that): up front when a `requires_admin` tool still needs installing and `sudo -n true` fails, otherwise the first time an installer calls `sudo -A` (for example when a terminal's cached sudo ticket passed the up-front check, but installers run without that tty). The app shows the password sheet and writes the password to stdin. The CLI verifies it with `sudo -S -v`, re-asks on a wrong password, and caches it for the run. Installers reach it through `SUDO_ASKPASS` (`cli/src/setmac/askpass.py`), so scripts call `sudo -A`.
 - **skipped**: `{"type": "skipped", "tool": "tool-id", "status": "needs_admin"}`, sent right after the `error` line for a `requires_admin` tool that was not attempted because the password was refused or cancelled. The `error` line carries the message; the tool is also in the summary's `failed` list.
 - **summary**: Last line of an install run: `{"type": "summary", "message": "...", "failed": ["tool-id"]}`. The CLI exits 2 when anything failed, so the app treats exit 2 as a normal result, not a crash.
-- **config_status**: Emitted by `configs list` for bundled/system/missing status.
+- **config_status**: Emitted by `configs list` for bundled/system/missing status (kept for the app until it uses `configs`).
+- **configs**: `{"type": "configs", "configs": [{id, tool, source, target, is_dir, status}]}` from `configs list --json`; status is missing, identical or differs.
 - **manifest**: `{"type": "manifest", "profile": "web", "manifest": {...tools.json shape...}}` from `profile show --json`. The app loads its tool list this way at launch and on Retry.
 - **profile_error**: `{"type": "profile_error", "profile": "...", "message": "...", "problems": [{code, tool_id, field, message}]}` when the active profile cannot be used, followed by a plain `error` line without a tool. The CLI exits 3.
 - `cli/tests/fixtures/protocol.jsonl` pins the exact line of every event type (`test_protocol.py`). Add event types or fields; never rename or drop them.
@@ -98,7 +100,7 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - `brew_cask` tools with a `check.path` count as installed only when that path exists (an interrupted cask install is still listed by brew). Without a path, `brew list` or `check.command` decides. A cask brew lists but whose path is missing is fixed with `brew reinstall --cask`.
 - `install --dry-run` prints each status, what would be installed, and which tools need the admin password, and changes nothing.
 - `cli/src/setmac/validate.py` holds the manifest rules (known method, required fields, unique ids, known deps, no cycles). `Registry` refuses to load a manifest with any problem; `validation_problems()` returns them as `{code, tool_id, field, message}`.
-- A tool whose dependency failed is skipped, not attempted. `install all` applies dotfiles last, skipping configs of failed tools.
+- A tool whose dependency failed is skipped, not attempted. `install all` never applies dotfiles; `--with-configs` does, last, skipping configs of failed tools (asks per file, or `--yes`). `--no-configs` is a hidden no-op for old scripts.
 - Tests: `cd cli && uv run pytest`.
 
 ### Logging
@@ -117,6 +119,13 @@ log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug
 - Every command gets its registry from `get_registry(ctx)` in `registry.py`; never build `Registry()` from the catalog in a command.
 - Config fields keep their old meaning: `source` is the file on the Mac (`~/...`), `target` is its copy under the profile's `configs_dir`. `validate.py` refuses paths outside home (symlinks resolved), `..`, and the sensitive locations unless listed in `sensitive_ok`.
 - Tests: `tests/test_profile.py` (resolution, merging, config paths, neutrality of `Resources/`) and `tests/test_gitprofile.py` (a local repo as the remote: pinning, trust, update, tampering).
+
+### Dotfiles (`commands/configs.py`, `scanner.py`)
+- Only from the active profile (`Tool.configs_root`); there is no global configs folder. A config's id is its `target`.
+- `apply [--only ids] [--yes] [--dry-run]`: confirm per file on a TTY, else `--yes` is required. Replaced files are moved (never followed if symlinks) to `~/.config/setmac-backup/<time>/` with `manifest.json`; `restore <time|latest> [--only]` backs up the current state, restores, and removes files the apply created. Backup folder names never repeat.
+- `capture [ids] [--accept-medium]`: only into a local profile folder (not a starter, a git checkout, or a clone of the public repo); stages with `.setmacignore` + `~/.config/setmac/ignore`, scans, and writes nothing if anything blocks.
+- Scanner: high (GitHub/OpenAI/Anthropic/Slack/AWS tokens, private keys, JWTs, assigned secrets) always blocks; medium (emails, `/Users/<name>`, `*.local|lan|internal`, high-entropy strings) blocks capture unless accepted. `apply` blocks on high only. Allow with `.setmac-scan-allow` (`rule-id:path-glob`). Findings show a redacted snippet, never the value.
+- `Resources/configs` is the maintainer's old dotfiles, no longer read or bundled; it is deleted once the private profile holds them.
 
 ### No hardcoded tools
 Everything is data-driven from `tools.json`. No tool names hardcoded in Swift or Python. Only `custom` install method needs dedicated installer code.

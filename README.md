@@ -10,7 +10,7 @@ Idempotent macOS setup automator. Reinstall all your dev tools, apps, and config
 - Applies macOS settings (Dock, Finder, Dark mode, trackpad) only when your profile turns them on, writing only what differs
 - Checks what's already installed and skips it, so a re-run resumes where the last one stopped
 - A failed tool skips the tools that depend on it; each run ends with a summary and a **Retry Failed** button
-- Restores your profile's dotfiles last, with timestamped backups in `~/.config/setmac-backup/` (the public catalog ships none)
+- Dotfiles are opt-in, per file, with a diff first: nothing replaces your files unless you choose it, and every replaced file is backed up and can be restored
 - Asks for the admin password once per run, in a native sheet, and shares it with every installer
 - Lists the manual steps left after installing (permissions to grant, App Store sign-in)
 - Native SwiftUI app with Liquid Glass UI on macOS Tahoe; Python CLI backend does the work
@@ -45,8 +45,11 @@ uv run setmac profile use web # Choose a profile (or a path to your own)
 uv run setmac status          # Check what's installed
 uv run setmac install all --dry-run  # See what would be installed
 uv run setmac install all     # Install the profile's tools
-uv run setmac configs capture # Save current dotfiles
-uv run setmac configs apply   # Restore dotfiles on fresh Mac
+uv run setmac configs list    # Your profile's dotfiles: missing, identical or differs
+uv run setmac configs diff zshrc            # See the difference for one file
+uv run setmac configs apply --only zshrc    # Apply chosen files (asks per file; --yes to skip)
+uv run setmac configs restore latest        # Undo the last apply
+uv run setmac configs capture # Copy dotfiles from this Mac into your own profile
 uv run setmac brewfile        # Print a Brewfile, for plain `brew bundle`
 ```
 
@@ -90,6 +93,12 @@ A profile is a folder with a `profile.json`. setmac uses, in order: `--profile <
 - `custom_tools`: your own tools, in the catalog's format. They may not reuse a catalog id; use `overrides` to change a catalog tool.
 - `configs` on your tools: `source` is the file on the Mac (`~/...`), `target` is its copy under `configs_dir`. `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/Library/LaunchAgents` and `~/.config/gh` are refused unless listed in `sensitive_ok`.
 - `setmac profile validate <spec>` lists every problem; `setmac profile show <spec>` lists the tools.
+
+### Dotfiles
+
+Dotfiles live in your own profile (`configs_dir`), never in setmac. `install all` does not touch them; `install all --with-configs` or `configs apply` does, asking per file on a terminal (or `--yes`). Each replaced file goes to `~/.config/setmac-backup/<time>/` with a manifest; `configs restore <time|latest>` puts it back and removes files the apply created.
+
+`configs capture` copies files from this Mac into your local profile folder, and refuses a starter, a pinned git checkout, or a clone of the public setmac repo. It scans everything first: tokens and private keys always block; emails, home paths, local host names and random-looking strings block unless you pass `--accept-medium`. Allow a reviewed finding with a `.setmac-scan-allow` line (`rule-id:path-glob`), and skip files with `.setmacignore` in the profile or `~/.config/setmac/ignore`.
 
 ### Review and trust
 
