@@ -29,10 +29,10 @@ jobs:
       # App Store installs need a signed-in Apple ID, which a runner can't have.
       ALLOWED_FAILURES: keynote,pages,numbers
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Build the standalone CLI (before stripping the toolchain)
         run: |
@@ -102,7 +102,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-logs
           path: |
