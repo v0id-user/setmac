@@ -2,6 +2,128 @@
 
 <!-- version list -->
 
+## v2.0.0 (2026-10-24)
+
+### Bug Fixes
+
+- Split CLI output on newline bytes so a split character never drops a line
+  ([`dff0ccf`](https://github.com/v0id-user/setmac/commit/dff0ccfa34a1ba79869a821be3b39b3356c4e98a))
+
+- Stop shipping the maintainer's old dotfiles in the app and CLI
+  ([`ecae76b`](https://github.com/v0id-user/setmac/commit/ecae76b188327d6c4891ffe263f18f703777dffa))
+
+### Chores
+
+- Add classify-tools.py to sort manifest tools into catalog or review
+  ([`8dee9e7`](https://github.com/v0id-user/setmac/commit/8dee9e7d467793df8909236711ff4635770e0e9f))
+
+- Remove the maintainer's old dotfiles from the public repo
+  ([`37adfa0`](https://github.com/v0id-user/setmac/commit/37adfa05c2a13645134f96e1dd52364d7297e125))
+
+### Continuous Integration
+
+- Delete Xcode on the end to end runner to free disk
+  ([`44b355a`](https://github.com/v0id-user/setmac/commit/44b355aaeddf741c5ba3b702fa2127697d01dab9))
+
+- Let gitleaks skip the scanner's test fixtures
+  ([`0fcfb36`](https://github.com/v0id-user/setmac/commit/0fcfb36dbe854e97c58903dbeaa3346265f5d977))
+
+- Make the CI and e2e workflows read-only
+  ([`8bcc68e`](https://github.com/v0id-user/setmac/commit/8bcc68e9ce520b664e82239628518ba83ed37a80))
+
+- Pin the CI and e2e workflow actions to commit SHAs
+  ([`eb84044`](https://github.com/v0id-user/setmac/commit/eb84044f3839192b9695336ad61421dae747bce0))
+
+- Push release commits with a deploy key instead of the Actions token
+  ([`0b864b9`](https://github.com/v0id-user/setmac/commit/0b864b982c7074275f89ece4b37fde431e1040f9))
+
+- Run the end to end test on starter profiles, weekly and for releases
+  ([`14f5b03`](https://github.com/v0id-user/setmac/commit/14f5b036b379f18f685ddb8cb51ace185d4bb8cc))
+
+- Sign release commits and tags with a CI-only GPG subkey
+  ([`5f02b78`](https://github.com/v0id-user/setmac/commit/5f02b78c1642704dcec8177c60bd1c723920894b))
+
+### Documentation
+
+- Describe git profiles, review and trust
+  ([`3fdc825`](https://github.com/v0id-user/setmac/commit/3fdc825f59194ec1eed674baac307555c71d479d))
+
+- Describe opt-in dotfiles, backups, capture and the scanner
+  ([`b33ea47`](https://github.com/v0id-user/setmac/commit/b33ea477648bfd9a48e6c5bd47599173e16d7aa0))
+
+- Describe profile export
+  ([`ae9d75a`](https://github.com/v0id-user/setmac/commit/ae9d75a6acdb658d5dd88bb4d5a6e0e403b2c0fb))
+
+- Describe profiles, starters and the neutral catalog
+  ([`5496593`](https://github.com/v0id-user/setmac/commit/5496593f350ba1286d3905ae9324f6b604d58773))
+
+- Describe signed CI releases and the release environment
+  ([`a391928`](https://github.com/v0id-user/setmac/commit/a3919288c29623c2888c83063ec959139e4700dd))
+
+- Describe the app's profile flow and the new events
+  ([`efc435a`](https://github.com/v0id-user/setmac/commit/efc435a95936361ef1a391c2ed38687cf1a9c7e3))
+
+- Describe the end to end workflow
+  ([`1a9f4c2`](https://github.com/v0id-user/setmac/commit/1a9f4c21113ebac151a55e093a9adf5218cfa0a5))
+
+- Describe the protocol fixture, data-driven categories and load errors
+  ([`5331b84`](https://github.com/v0id-user/setmac/commit/5331b84b59ad308438305aa866229f3bd50df2f1))
+
+- List the catalog's new tools
+  ([`003a45c`](https://github.com/v0id-user/setmac/commit/003a45c6d3e580f7e5b7b3706fa62afa26339525))
+
+- Say plainly what the Actions bypass on main skips
+  ([`5f1391d`](https://github.com/v0id-user/setmac/commit/5f1391d99eb1290f8c4535abfe491bf5ddc2b2b2))
+
+### Features
+
+- Add DevOps CLIs, apps, Rust and editor extensions
+  ([`684a859`](https://github.com/v0id-user/setmac/commit/684a85931edd936aebde55ea0bb612c753d58d5e))
+
+- Install the tools a profile picks from a neutral catalog
+  ([`0c8a0fb`](https://github.com/v0id-user/setmac/commit/0c8a0fbc69fe67ac0f12ec9892af1128f4761472))
+
+- Profile screen, review before trust, first-run choice and per-file dotfiles in the app
+  ([`bd69c14`](https://github.com/v0id-user/setmac/commit/bd69c14580babecea43971740ba2e24140ffdd9d))
+
+- Show the active profile's tools in the app
+  ([`e1e8af2`](https://github.com/v0id-user/setmac/commit/e1e8af2a78ee274140421ed54f433adc2dceea70))
+
+- Show why the manifest failed to load and keep tools in undefined categories
+  ([`d04c97e`](https://github.com/v0id-user/setmac/commit/d04c97e98f7fc3152f1fdec29af1d57d7ae3cdd8))
+
+- Use pnpm, CocoaPods, Watchman, kubectl, Helm and yq in the starters
+  ([`fc3d609`](https://github.com/v0id-user/setmac/commit/fc3d609554817500ee117e9a47d29b09419c36cb))
+
+- **cli**: Add the JSON events the app needs for profiles and dotfiles
+  ([`0463e5d`](https://github.com/v0id-user/setmac/commit/0463e5da09a1e8584c61aa019849b3ad74b2fb43))
+
+- **cli**: Export an old all-in-one setup into a private profile folder
+  ([`35c2d9e`](https://github.com/v0id-user/setmac/commit/35c2d9e8c7136856cbaf1c86c9c5792ec4f2e69e))
+
+- **cli**: Load profiles from git and run them only after review and trust
+  ([`cc0861e`](https://github.com/v0id-user/setmac/commit/cc0861e65f6542af0298597204ec3fb949ab9099))
+
+- **cli**: Make dotfiles opt-in per file, with a diff, backups and restore
+  ([`b230639`](https://github.com/v0id-user/setmac/commit/b2306390d70785c515bf223aaa0eb9d69f68ff9c))
+
+- **cli**: Scan dotfiles for secrets and personal data
+  ([`fa9e455`](https://github.com/v0id-user/setmac/commit/fa9e45539cfc15623bc3ca7a45834604affbf82a))
+
+### Refactoring
+
+- Keep the e2e branch's personal tools out of the catalog
+  ([`edc7066`](https://github.com/v0id-user/setmac/commit/edc70660575358b268f1dfc5ff6f87cd092213d9))
+
+### Testing
+
+- Scan all of Resources for personal data now that no dotfiles ship
+  ([`7b0a0c6`](https://github.com/v0id-user/setmac/commit/7b0a0c6daf6570d9dd6b09e62940c62e6ea39e3a))
+
+- **cli**: Pin every JSON-line event with a golden fixture
+  ([`9c690ec`](https://github.com/v0id-user/setmac/commit/9c690ec7f1ad5576e9878422c5ce83f327560864))
+
+
 ## v1.3.0 (2026-10-24)
 
 ### Bug Fixes
