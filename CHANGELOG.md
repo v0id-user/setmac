@@ -2,6 +2,67 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-10-24)
+
+### Bug Fixes
+
+- Build AppIcon.icns at bundle time and fail when the icon is missing
+  ([`73fc725`](https://github.com/v0id-user/setmac/commit/73fc725d03f1cd05f6e24211af23d5817c46cb65))
+
+- Seed the icon grain so draw-icon.swift is reproducible
+  ([`31a1e87`](https://github.com/v0id-user/setmac/commit/31a1e8784ae421dae5ff9be248eb661d9131320f))
+
+- **cli**: Reinstall a cask brew lists when its app is missing
+  ([`5209f88`](https://github.com/v0id-user/setmac/commit/5209f8851075ec9707f1505f24617b759a433c2d))
+
+- **cli**: Trust check.path for brew casks so an interrupted install is not reported installed
+  ([`5d7a8bb`](https://github.com/v0id-user/setmac/commit/5d7a8bb4f07648650c179a6053894b797e113a2c))
+
+### Chores
+
+- Add editorconfig matching the repo's indentation
+  ([`d55340d`](https://github.com/v0id-user/setmac/commit/d55340d6d928f3afdfb010636557cbfcbbc1fb5f))
+
+- Check the app icon in release-verify, including inside the DMG
+  ([`caff881`](https://github.com/v0id-user/setmac/commit/caff8815e38c8fd498a72bd1054e7e747a8f4326))
+
+- Ignore secrets, agent worktrees and generated icons
+  ([`8b0c3d0`](https://github.com/v0id-user/setmac/commit/8b0c3d02aafe9735edc1dfa88055a82f1b47142b))
+
+### Continuous Integration
+
+- Scan for secrets with gitleaks, add lefthook hooks and dependabot
+  ([`d3611ec`](https://github.com/v0id-user/setmac/commit/d3611ec5c0963d04314c5d0e5eb0ee0f628f8cf4))
+
+### Documentation
+
+- Add security policy, contributing guide, code of conduct and GitHub templates
+  ([`8a1c9d1`](https://github.com/v0id-user/setmac/commit/8a1c9d1ab3e5492d1cf1fd86c502c615268e47d3))
+
+- Describe the icon pipeline
+  ([`b081726`](https://github.com/v0id-user/setmac/commit/b0817268adc87ce52059d7f5a67a9a175773f818))
+
+- Describe the skipped event, cask path check, dry run and validator
+  ([`0955206`](https://github.com/v0id-user/setmac/commit/09552067f0ce0ac9e8c563c7e9b40961dd60a24e))
+
+- Drop stale tool counts and home path, fold .cursorrules into CLAUDE.md
+  ([`d769c81`](https://github.com/v0id-user/setmac/commit/d769c81798da4018f098fdb2b8dd04105d762848))
+
+### Features
+
+- Add the sprout app icon
+  ([`a199224`](https://github.com/v0id-user/setmac/commit/a199224730f57e898367781a46192c1a324e1167))
+
+- Show the app icon in the Dock under swift run and in About
+  ([`222033b`](https://github.com/v0id-user/setmac/commit/222033bfdd9a11b55b12061b5a7c1a3d0d93c72f))
+
+- **cli**: Enforce requires_admin with an up-front password check and a needs_admin skip
+  ([`0819045`](https://github.com/v0id-user/setmac/commit/0819045d75149d056dcc27c071ca74ff29cfe12b))
+
+- **cli**: Validate manifests with structured problems
+  ([`e5a2c97`](https://github.com/v0id-user/setmac/commit/e5a2c97d8efbef526bb32fbbbc9129ac9fa0c2cb))
+
+
 ## v1.2.0 (2026-10-23)
 
 ### Bug Fixes
