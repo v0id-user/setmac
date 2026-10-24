@@ -72,6 +72,7 @@ Thread-safe via `threading.Lock()` in `output.py`.
 - **skipped**: `{"type": "skipped", "tool": "tool-id", "status": "needs_admin"}`, sent right after the `error` line for a `requires_admin` tool that was not attempted because the password was refused or cancelled. The `error` line carries the message; the tool is also in the summary's `failed` list.
 - **summary**: Last line of an install run: `{"type": "summary", "message": "...", "failed": ["tool-id"]}`. The CLI exits 2 when anything failed, so the app treats exit 2 as a normal result, not a crash.
 - **config_status**: Emitted by `configs list` for bundled/system/missing status.
+- `cli/tests/fixtures/protocol.jsonl` pins the exact line of every event type (`test_protocol.py`). Add event types or fields; never rename or drop them.
 
 ### CLIBridge.swift
 - Dev mode: runs `cli/.venv/bin/setmac` directly (bypasses `uv` to avoid GUI hangs). Falls back to `uv run --frozen` if venv not set up.
@@ -101,6 +102,8 @@ log stream --predicate 'subsystem == "com.v0id.setmac"' --level debug
 
 ### No hardcoded tools
 Everything is data-driven from `tools.json`. No tool names hardcoded in Swift or Python. Only `custom` install method needs dedicated installer code.
+
+Sidebar categories come from the manifest's optional `categories` list (`id`, `name`, `icon`, `color`, `order`), else the built-in set in `ToolManifest.swift`. Tools in a category nobody defined show under **Other**, never disappear. A manifest that fails to load shows its error (file and JSON path) with a Retry button instead of an empty sidebar.
 
 ## Git Commit Convention
 
