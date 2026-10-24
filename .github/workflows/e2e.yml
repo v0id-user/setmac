@@ -1,13 +1,16 @@
 name: End to End
 
-# Runs the packaged CLI's `install all` on a macOS runner stripped back to a
-# freshly formatted state: no Homebrew, no Command Line Tools, Xcode hidden,
-# then runs as a brand-new admin user whose sudo needs a password, so setmac's
-# password prompt is exercised and the home folder starts empty.
+# Installs starter profiles with the packaged CLI on a macOS runner stripped back to a
+# freshly formatted state: no Homebrew, no Command Line Tools, Xcode deleted, and a
+# brand-new admin user whose sudo needs a password, so setmac's password prompt is
+# exercised and the home folder starts empty. Runs weekly, on demand, and on pull
+# requests labelled `release` or opened from a `release/...` branch.
 on:
+  schedule:
+    - cron: "0 5 * * 1"
   workflow_dispatch:
-  push:
-    branches: [e2e]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 defaults:
   run:
@@ -23,14 +26,28 @@ permissions:
 
 jobs:
   fresh-mac:
-    name: Install all on a fresh Mac
+    name: Install ${{ matrix.profile }} on a fresh Mac
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'release')
+      || startsWith(github.head_ref, 'release/')
     runs-on: macos-26
-    timeout-minutes: 150
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: minimal
+            brew_bins: git gh rg fd bat eza fzf jq mise
+            mise_tools: ""
+          - profile: web
+            brew_bins: git gh rg fd bat eza fzf jq mise python3 uv lazygit pnpm
+            mise_tools: node bun
     env:
       E2E_USER: setmacuser
-      E2E_PASSWORD: setmac-e2e-password
-      # App Store installs need a signed-in Apple ID, which a runner can't have.
-      ALLOWED_FAILURES: keynote,pages,numbers
+      PROFILE: ${{ matrix.profile }}
+      # Tool ids allowed to fail; none in these starters.
+      ALLOWED_FAILURES: ""
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -44,24 +61,28 @@ jobs:
           cp cli/dist/setmac-cli "$RUNNER_TEMP/setmac-cli"
           "$RUNNER_TEMP/setmac-cli" --version
 
+      - name: Make a password for the test user
+        run: |
+          password="$(openssl rand -base64 24)"
+          echo "::add-mask::$password"
+          echo "E2E_PASSWORD=$password" >> "$GITHUB_ENV"
+
       - name: Strip the runner back to a fresh Mac
         run: |
-          set -x
-          # Best effort; the next step checks the result.
-          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)" || true
-          sudo rm -rf /opt/homebrew /usr/local/Homebrew /usr/local/Caskroom /usr/local/bin/brew || true
-          sudo rm -rf /Library/Developer/CommandLineTools || true
-          for pkg in $(pkgutil --pkgs | grep -i CLTools); do sudo pkgutil --forget "$pkg" || true; done
-          # Delete rather than move: the big casks need the disk space.
-          sudo rm -rf /Applications/Xcode*.app || true
+          # Each removal is best effort; the next step checks the result.
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)" || echo "brew uninstaller: $?"
+          sudo rm -rf /opt/homebrew /usr/local/Homebrew /usr/local/Caskroom /usr/local/bin/brew
+          sudo rm -rf /Library/Developer/CommandLineTools
+          for pkg in $(pkgutil --pkgs | grep -i CLTools); do sudo pkgutil --forget "$pkg"; done
+          sudo rm -rf /Applications/Xcode*.app
           df -h /
-          sudo xcode-select --reset || true
+          sudo xcode-select --reset || echo "nothing to reset"
           # A brand-new admin user: empty home, and sudo that asks for a password.
           sudo sysadminctl -addUser "$E2E_USER" -fullName "setmac e2e" -password "$E2E_PASSWORD" -admin
-          sudo createhomedir -c -u "$E2E_USER" || true
+          sudo createhomedir -c -u "$E2E_USER" > /dev/null
           # The image lets every admin sudo without a password. sudoers applies the
           # last matching rule, so this file (sorted last) makes the new user type one.
-          echo "$E2E_USER ALL = (ALL) PASSWD: ALL" | sudo tee /etc/sudoers.d/zzz-setmac-e2e
+          echo "$E2E_USER ALL = (ALL) PASSWD: ALL" | sudo tee /etc/sudoers.d/zzz-setmac-e2e > /dev/null
           sudo chmod 440 /etc/sudoers.d/zzz-setmac-e2e
           sudo visudo -c
           sudo mkdir -p /Users/Shared/setmac-e2e
@@ -79,38 +100,113 @@ jobs:
           echo "Fresh: no brew, no CLT, empty home, sudo needs a password"
 
       - name: setmac install all (first run)
-        if: steps.fresh.outcome == 'success'
         run: |
+          set +e
           echo "$E2E_PASSWORD" | sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh \
-            PATH=/usr/bin:/bin:/usr/sbin:/sbin /Users/Shared/setmac-e2e/setmac-cli install all | tee first-run.jsonl || true
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin /Users/Shared/setmac-e2e/setmac-cli --profile "$PROFILE" install all | tee first-run.jsonl
+          code=${PIPESTATUS[1]}
+          # 0: all installed; 2: some failed, which the report judges against the allowlist.
+          [ "$code" -eq 0 ] || [ "$code" -eq 2 ] || { echo "setmac-cli exited $code"; exit 1; }
 
       - name: Report first run
-        if: steps.fresh.outcome == 'success'
         run: |
           uv run --no-project --python 3.12 scripts/e2e_report.py first-run.jsonl \
             --allow-failed "$ALLOWED_FAILURES" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: setmac install all (second run, should change nothing)
-        if: always() && steps.fresh.outcome == 'success'
         run: |
+          set +e
           echo "$E2E_PASSWORD" | sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh \
-            PATH=/usr/bin:/bin:/usr/sbin:/sbin /Users/Shared/setmac-e2e/setmac-cli install all | tee second-run.jsonl || true
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin /Users/Shared/setmac-e2e/setmac-cli --profile "$PROFILE" install all | tee second-run.jsonl
+          code=${PIPESTATUS[1]}
+          [ "$code" -eq 0 ] || [ "$code" -eq 2 ] || { echo "setmac-cli exited $code"; exit 1; }
+          set -e
           uv run --no-project --python 3.12 scripts/e2e_report.py second-run.jsonl \
             --allow-failed "$ALLOWED_FAILURES" --expect-no-installs | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: A new login shell finds the tools
-        if: always() && steps.fresh.outcome == 'success'
+      - name: The installed tools run
+        env:
+          BREW_BINS: ${{ matrix.brew_bins }}
+          MISE_TOOLS: ${{ matrix.mise_tools }}
         run: |
+          # Dotfiles are opt-in, so a new shell has no PATH setup; ask brew and mise directly.
           sudo -u "$E2E_USER" -H env -i HOME="/Users/$E2E_USER" USER="$E2E_USER" SHELL=/bin/zsh TERM=xterm \
-            zsh -lic 'for t in brew git node bun go uv nvim starship mise; do printf "%-9s %s\n" "$t" "$(command -v $t || echo MISSING)"; done' | tee shell.txt
+            BREW_BINS="$BREW_BINS" MISE_TOOLS="$MISE_TOOLS" zsh -c '
+              eval "$(/opt/homebrew/bin/brew shellenv)"
+              for t in brew ${=BREW_BINS}; do printf "%-9s %s\n" "$t" "$(command -v $t || echo MISSING)"; done
+              for t in ${=MISE_TOOLS}; do printf "%-9s %s\n" "$t" "$(mise which $t 2>/dev/null || echo MISSING)"; done
+            ' | tee shell.txt
           if grep -q MISSING shell.txt; then exit 1; fi
+
+      - name: No dotfile was written
+        run: |
+          for f in .zshrc .tmux.conf .config/starship.toml .config/ghostty/config; do
+            if sudo test -e "/Users/$E2E_USER/$f"; then echo "setmac wrote ~/$f without being asked"; exit 1; fi
+          done
 
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-logs
+          name: e2e-logs-${{ matrix.profile }}
           path: |
             first-run.jsonl
             second-run.jsonl
             shell.txt
+
+  app-bundle:
+    name: App, DMG and icon
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'release')
+      || startsWith(github.head_ref, 'release/')
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+
+      - name: Build the app and DMG
+        run: |
+          uv python install 3.12
+          brew install just
+          just bundle
+          bash scripts/dmg.sh
+
+      - name: Check the icon in the app and inside the DMG
+        run: |
+          just verify-icon dist/Setmac.app
+          mount="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount" dist/Setmac.dmg > /dev/null
+          trap 'hdiutil detach "$mount" -quiet' EXIT
+          just verify-icon "$mount/Setmac.app"
+
+      - name: The embedded CLI returns a tool list
+        run: |
+          dist/Setmac.app/Contents/MacOS/setmac-cli --profile minimal profile show --json | tee manifest.json
+          grep -q '"type": "manifest"' manifest.json
+
+  heavy-casks:
+    name: Large apps (not blocking)
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+
+      - name: Install the big casks through a throwaway profile
+        run: |
+          uv python install 3.12
+          cd cli && uv sync
+          heavy="$RUNNER_TEMP/heavy"
+          mkdir -p "$heavy"
+          echo '{"schema": 1, "name": "heavy", "tools": {"add": ["docker-desktop", "visual-studio-code"]}}' > "$heavy/profile.json"
+          hash="$(uv run setmac --profile "$heavy" profile show --json | jq -r .content_hash)"
+          uv run setmac profile trust "$heavy" --hash "$hash"
+          uv run setmac --profile "$heavy" install all | tee heavy.jsonl
