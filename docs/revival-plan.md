@@ -15,7 +15,7 @@ From a fresh Mac, "Install all" in the app cannot succeed today. Six blockers, i
 | 3 | Apple's stub `/usr/bin/git`, `python3` and `ssh` pass `command -v`, so brew git, python and openssh are reported installed and never installed | `cli/src/setmac/installers/base.py:87-98` |
 | 4 | When an install "succeeds" but the re-check fails, it is reported as **complete** ("restart shell to verify"), and dependents run anyway | `base.py:174-182` |
 | 5 | Brew output is buffered until the command ends (up to 10 min of silence) and has a hard 600 s timeout | `base.py:207-219` |
-| 6 | The bundled `zshrc` never runs `brew shellenv`, hardcodes `/Users/v0id`, and sources `~/.local/bin/env` without checking it exists (uv isn't in the manifest) | `Resources/configs/zshrc:158`, `:164` |
+| 6 | The bundled `zshrc` never runs `brew shellenv`, hardcodes the author's home directory, and sources `~/.local/bin/env` without checking it exists (uv isn't in the manifest) | `Resources/configs/zshrc:158`, `:164` |
 
 Also broken or fragile:
 - A failed tool doesn't stop its dependents. `install all` exits 0 even when everything failed (`commands/install.py`).
