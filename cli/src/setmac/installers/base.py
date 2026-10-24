@@ -113,12 +113,12 @@ def check_tool(tool: Tool) -> tuple[bool, str | None]:
     if method == "brew_formula":
         installed = tool.install.target in _brew_inventory()["formula"]
     elif method == "brew_cask":
-        # A cask app may also have been installed by hand, outside brew.
-        installed = (
-            tool.install.target in _brew_inventory()["cask"]
-            or _path_exists(tool.check.path)
-            or _command_ok(tool.check.command)
-        )
+        if tool.check.path:
+            # The app on disk is the truth: brew lists a cask whose install was
+            # interrupted before the .app landed, and a hand-installed app counts.
+            installed = _path_exists(tool.check.path)
+        else:
+            installed = tool.install.target in _brew_inventory()["cask"] or _command_ok(tool.check.command)
     elif method == "mise":
         installed = _command_ok(["mise", "where", tool.install.target])
     elif method == "mas":

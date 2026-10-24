@@ -66,3 +66,34 @@ def test_brew_formula_ignores_stub_commands(monkeypatch, tmp_path):
 
     monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": {"git"}, "cask": set()})
     assert base.check_tool(git)[0] is True
+
+
+def cask_tool(tmp_path, check):
+    manifest = tmp_path / "tools.json"
+    manifest.write_text(json.dumps({"tools": [{
+        "id": "app", "name": "App", "depends_on": [], "check": check,
+        "install": {"method": "brew_cask", "target": "app"},
+    }]}))
+    return Registry(manifest).get("app")
+
+
+def test_brew_cask_with_a_path_trusts_the_path(monkeypatch, tmp_path):
+    # brew lists a cask whose install stopped before the .app was copied.
+    app = tmp_path / "App.app"
+    tool = cask_tool(tmp_path, {"path": str(app)})
+    monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": set(), "cask": {"app"}})
+    assert base.check_tool(tool) == (False, None)
+
+    # Installed by hand, outside brew.
+    app.mkdir()
+    monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": set(), "cask": set()})
+    assert base.check_tool(tool)[0] is True
+
+
+def test_brew_cask_without_a_path_uses_brew_or_the_command(monkeypatch, tmp_path):
+    tool = cask_tool(tmp_path, {"command": "false"})
+    monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": set(), "cask": set()})
+    assert base.check_tool(tool)[0] is False
+    monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": set(), "cask": {"app"}})
+    assert base.check_tool(tool)[0] is True
+
