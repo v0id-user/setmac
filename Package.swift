@@ -11,6 +11,8 @@ let package = Package(
             path: "Sources",
             resources: [
                 .process("../Resources/Assets.xcassets"),
+                // Sets the Dock icon under `swift run`, where there is no .app bundle.
+                .copy("../Resources/icon.png"),
             ]
         )
     ]

@@ -73,7 +73,11 @@ apply-configs:
 
 # ─── Icon ─────────────────────────────────────────────────────
 
-# Generate .icns from icon.png (1024x1024)
+# Redraw Resources/icon.png (reproducible: same seed, same pixels)
+icon-draw variant="sprout":
+    swift scripts/draw-icon.swift {{variant}} Resources/icon.png
+
+# Generate .build/icon/AppIcon.icns from icon.png (bundle.sh does this itself)
 icon:
     bash scripts/generate-icon.sh
 
@@ -101,11 +105,35 @@ release-build-test:
     @echo "Artifacts: dist/Setmac.dmg, cli/dist/setmac-cli"
     file dist/Setmac.dmg cli/dist/setmac-cli
 
-# Verify release signatures and CLI startup
-release-verify:
+# Verify release signatures, the app icon (in the app and inside the DMG), and CLI startup
+release-verify: (verify-icon "dist/Setmac.app")
+    #!/usr/bin/env bash
+    set -euo pipefail
     codesign --verify --deep --strict --verbose=2 dist/Setmac.app
     codesign --verify --verbose=2 dist/Setmac.dmg
+    mount=$(mktemp -d)
+    hdiutil attach -nobrowse -readonly -mountpoint "$mount" dist/Setmac.dmg > /dev/null
+    trap 'hdiutil detach "$mount" -quiet' EXIT
+    just verify-icon "$mount/Setmac.app"
     cli/dist/setmac-cli --help
+
+# Check that an app bundle carries a complete AppIcon.icns
+verify-icon app=app_bundle:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    plist="{{app}}/Contents/Info.plist"
+    icns="{{app}}/Contents/Resources/AppIcon.icns"
+    plutil -lint "$plist"
+    test "$(plutil -extract CFBundleIconFile raw "$plist")" = "AppIcon"
+    test -s "$icns"
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' EXIT
+    iconutil -c iconset "$icns" -o "$work/AppIcon.iconset"
+    count=$(ls "$work/AppIcon.iconset" | wc -l | tr -d ' ')
+    test "$count" -eq 10 || { echo "expected 10 icon images, found $count" >&2; exit 1; }
+    largest=$(sips -g pixelWidth "$work/AppIcon.iconset/icon_512x512@2x.png" | awk '/pixelWidth/ {print $2}')
+    test "$largest" -eq 1024 || { echo "largest icon is ${largest}px, expected 1024" >&2; exit 1; }
+    echo "Icon OK: $icns"
 
 # ─── Utilities ────────────────────────────────────────────────
 
