@@ -21,11 +21,14 @@ EXIT_SOME_FAILED = 2
 @click.argument("tool_ids", nargs=-1, required=True)
 @click.option("--category", "-c", is_flag=True, help="Treat TOOL_ID as a category name")
 @click.option("--check", is_flag=True, help="Only check status, don't install")
-@click.option("--no-configs", is_flag=True, help="With 'all', skip applying dotfiles at the end")
+@click.option("--with-configs", is_flag=True, help="Also apply the profile's dotfiles at the end (asks per file, or --yes)")
+@click.option("--yes", "assume_yes", is_flag=True, help="With --with-configs, replace dotfiles without asking")
+@click.option("--no-configs", is_flag=True, hidden=True, help="Kept for old scripts: dotfiles are opt-in now")
 @click.option("--dry-run", is_flag=True, help="List what would be installed and what needs admin; change nothing")
 @click.pass_context
 def install_cmd(
-    ctx: click.Context, tool_ids: tuple[str, ...], category: bool, check: bool, no_configs: bool, dry_run: bool
+    ctx: click.Context, tool_ids: tuple[str, ...], category: bool, check: bool,
+    with_configs: bool, assume_yes: bool, no_configs: bool, dry_run: bool,
 ):
     """Install tools by id, a category (with -c), or 'all'."""
     everything = tool_ids == ("all",)
@@ -50,11 +53,11 @@ def install_cmd(
             raise SystemExit(1)
         tools = registry.install_order(list(tool_ids))
 
-    apply_dotfiles = everything and not no_configs
+    apply_dotfiles = with_configs and not no_configs
     if dry_run:
         plan_tools(tools, apply_dotfiles)
         return
-    failed = install_tools(tools, registry, apply_dotfiles)
+    failed = install_tools(tools, registry, apply_dotfiles, assume_yes=assume_yes)
     if failed:
         raise SystemExit(EXIT_SOME_FAILED)
 
@@ -83,7 +86,7 @@ def plan_tools(tools: list[Tool], apply_dotfiles: bool) -> None:
         emit_log("Would apply dotfiles at the end")
 
 
-def install_tools(tools: list[Tool], registry: Registry, apply_dotfiles: bool) -> list[str]:
+def install_tools(tools: list[Tool], registry: Registry, apply_dotfiles: bool, assume_yes: bool = False) -> list[str]:
     """Install tools in order. Returns the ids that failed or were skipped."""
     askpass = AskpassServer()
     runner = Runner(extra_env=askpass.env())
@@ -130,7 +133,7 @@ def install_tools(tools: list[Tool], registry: Registry, apply_dotfiles: bool) -
                 next_steps.append(f"{tool.name}: {tool.post_install}")
 
         if apply_dotfiles:
-            apply_configs(registry, skip_tools=set(failed))
+            apply_configs(registry, skip_tools=set(failed), assume_yes=assume_yes)
     finally:
         askpass.close()
 

@@ -112,7 +112,9 @@ def _configs(tool: Tool, sensitive_ok: set[str] | frozenset[str]) -> list[Proble
                 f"'{tool.id}' config source must be a plain ~/ path, got '{source}'",
             ))
         else:
-            if _escapes(os.path.expanduser(source), home):
+            # The folders leading to the file must stay in home; the file itself may be the
+            # user's own symlink, which apply moves aside instead of following.
+            if _escapes(os.path.dirname(os.path.expanduser(source)), home):
                 found.append(Problem(
                     "config_outside_home", tool.id, f"{field}.source",
                     f"'{tool.id}' config source '{source}' resolves outside your home directory",

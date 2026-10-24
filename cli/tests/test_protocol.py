@@ -27,6 +27,7 @@ def emit_every_event():
     output.emit_summary("1 installed, 1 already set up, 1 failed: rosetta", failed=["rosetta"])
     output.emit_profile_error("web", [Problem("unknown_tool", "nope", "tools.add", "profile 'web' adds unknown tool 'nope'")])
     output.emit_manifest("minimal", {"version": "1.0.0", "name": "minimal", "description": "", "tools": []})
+    output.emit_configs([{"id": "zsh/zshrc", "tool": "zsh", "source": "~/.zshrc", "target": "zsh/zshrc", "is_dir": False, "status": "differs"}])
 
 
 def test_events_match_the_golden_fixture(capsys):
