@@ -64,7 +64,7 @@ CLI stdout emits one JSON object per line:
 ```
 Thread-safe via `threading.Lock()` in `output.py`.
 
-- **auth_required**: Sent once per run: up front when a `requires_admin` tool still needs installing and `sudo -n true` fails, otherwise the first time any installer calls `sudo`. The app shows the password sheet and writes the password to stdin. The CLI verifies it with `sudo -S -v`, re-asks on a wrong password, and caches it for the run. Installers reach it through `SUDO_ASKPASS` (`cli/src/setmac/askpass.py`), so scripts call `sudo -A`.
+- **auth_required**: Sent at most once per run (it is cached after that): up front when a `requires_admin` tool still needs installing and `sudo -n true` fails, otherwise the first time an installer calls `sudo -A` (for example when a terminal's cached sudo ticket passed the up-front check, but installers run without that tty). The app shows the password sheet and writes the password to stdin. The CLI verifies it with `sudo -S -v`, re-asks on a wrong password, and caches it for the run. Installers reach it through `SUDO_ASKPASS` (`cli/src/setmac/askpass.py`), so scripts call `sudo -A`.
 - **skipped**: `{"type": "skipped", "tool": "tool-id", "status": "needs_admin"}`, sent right after the `error` line for a `requires_admin` tool that was not attempted because the password was refused or cancelled. The `error` line carries the message; the tool is also in the summary's `failed` list.
 - **summary**: Last line of an install run: `{"type": "summary", "message": "...", "failed": ["tool-id"]}`. The CLI exits 2 when anything failed, so the app treats exit 2 as a normal result, not a crash.
 - **config_status**: Emitted by `configs list` for bundled/system/missing status.
@@ -83,7 +83,7 @@ Thread-safe via `threading.Lock()` in `output.py`.
 
 ### Install checks
 - `brew_formula` tools count as installed only when `brew list` shows them. A fresh Mac's stub `/usr/bin/git`, `python3` and `ssh` pass `command -v`, so `check.command` is ignored for formulae.
-- `brew_cask` tools with a `check.path` count as installed only when that path exists (an interrupted cask install is still listed by brew). Without a path, `brew list` or `check.command` decides.
+- `brew_cask` tools with a `check.path` count as installed only when that path exists (an interrupted cask install is still listed by brew). Without a path, `brew list` or `check.command` decides. A cask brew lists but whose path is missing is fixed with `brew reinstall --cask`.
 - `install --dry-run` prints each status, what would be installed, and which tools need the admin password, and changes nothing.
 - `cli/src/setmac/validate.py` holds the manifest rules (known method, required fields, unique ids, known deps, no cycles). `Registry` refuses to load a manifest with any problem; `validation_problems()` returns them as `{code, tool_id, field, message}`.
 - A tool whose dependency failed is skipped, not attempted. `install all` applies dotfiles last, skipping configs of failed tools.

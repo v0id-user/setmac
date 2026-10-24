@@ -156,3 +156,11 @@ def test_dry_run_lists_admin_tools_and_changes_nothing(monkeypatch, tmp_path):
     assert "Would install 3 tool(s): plain, root, child" in logs
     assert "Needs an admin password: root" in logs
     assert not (root.exists() or child.exists() or plain.exists())
+
+
+def test_listed_cask_with_a_missing_app_is_reinstalled(monkeypatch, tmp_path):
+    tool = cask_tool(tmp_path, {"path": str(tmp_path / "App.app")})
+    monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": set(), "cask": {"app"}})
+    assert base.install_command(tool) == ["brew", "reinstall", "--cask", "app"]
+    monkeypatch.setattr(base, "_brew_inventory", lambda: {"formula": set(), "cask": set()})
+    assert base.install_command(tool) == ["brew", "install", "--cask", "app"]
