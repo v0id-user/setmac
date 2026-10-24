@@ -26,6 +26,9 @@ commit_parser = "releasetools.commit_parser:SetmacCommitParser"
 version_toml = ["pyproject.toml:tool.setmac.version"]
 version_variables = ["cli/src/setmac/__init__.py:__version__"]
 build_command = "bash scripts/release-build.sh"
+# Also used as the committer. It must be a verified email on the GitHub account that
+# holds the signing key, or GitHub shows release commits as unverified.
+commit_author = "semantic-release <hey@v0id.me>"
 upload_to_vcs_release = true
 
 [tool.semantic_release.remote]

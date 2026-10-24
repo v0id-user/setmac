@@ -13,17 +13,18 @@ jobs:
   release:
     name: Version and Release (Stable)
     runs-on: macos-26
+    # Waits for the maintainer's approval; only this environment can read the signing key.
+    environment: release
     permissions:
       contents: write
-      id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
 
       - name: Set up Python
         run: uv python install 3.12
@@ -40,7 +41,8 @@ jobs:
 
           CERT_PATH="$RUNNER_TEMP/setmac-signing.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/setmac-signing.keychain-db"
-          KEYCHAIN_PASSWORD="setmac-temporary-keychain"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
 
           echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERT_PATH"
 
@@ -52,10 +54,17 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
+      - name: Import release signing key
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+        run: bash scripts/ci-signing-key.sh
+
       - name: Sync root deps (semantic-release)
         run: uv sync
 
       - name: Run semantic-release (stable)
+        id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -65,28 +74,28 @@ jobs:
         run: uv run semantic-release version
 
       - name: Upload artifacts to release
-        if: success()
+        if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
-          gh release upload "v$VERSION" dist/Setmac.dmg cli/dist/setmac-cli --clobber
+          gh release upload "${{ steps.release.outputs.tag }}" dist/Setmac.dmg cli/dist/setmac-cli --clobber
 
       - name: Append install notes to release
-        if: success()
+        if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          TAG="${{ steps.release.outputs.tag }}"
           NOTES_FILE="$RUNNER_TEMP/release-notes.md"
-          gh release view "v$VERSION" --json body --jq .body > "$NOTES_FILE"
+          gh release view "$TAG" --json body --jq .body > "$NOTES_FILE"
           cat <<'EOF' >> "$NOTES_FILE"
 
           ## Install Notes
 
+          - The release commit and tag are GPG-signed (`git tag -v <tag>`).
           - Releases are ad-hoc signed by default and switch to full Developer ID signing and notarization automatically when Apple signing secrets are configured in GitHub Actions.
           - Ad-hoc signed builds are still not notarized, so Gatekeeper may block them after download.
           - If macOS blocks the app as "damaged" or untrusted, move `Setmac.app` to `/Applications` and run `xattr -cr /Applications/Setmac.app`, or Control-click the app and choose `Open`.
           - If Gatekeeper still blocks the app, download the newest release artifact.
           EOF
-          gh release edit "v$VERSION" --notes-file "$NOTES_FILE"
+          gh release edit "$TAG" --notes-file "$NOTES_FILE"
