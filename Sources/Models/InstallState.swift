@@ -34,6 +34,43 @@ struct AuthRequest: Identifiable {
     let message: String
 }
 
+/// A starter profile from `profile list --json`.
+struct StarterInfo: Codable, Hashable, Identifiable {
+    let name: String
+    let description: String
+    var id: String { name }
+}
+
+/// One dotfile from `configs list --json`: status is missing, identical or differs.
+struct ConfigItem: Codable, Hashable, Identifiable {
+    let id: String
+    let tool: String
+    let source: String
+    let target: String
+    let isDir: Bool
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, tool, source, target, status
+        case isDir = "is_dir"
+    }
+}
+
+/// A backup folder from `configs backups --json`.
+struct BackupInfo: Codable, Hashable, Identifiable {
+    let stamp: String
+    let ids: [String]
+    var id: String { stamp }
+}
+
+/// The review of the active profile, shown before anything from it runs.
+struct ProfileReview: Identifiable {
+    let spec: String
+    let text: String
+    let contentHash: String?
+    var id: String { spec + (contentHash ?? "") }
+}
+
 enum ConfigStatus: String, Codable {
     case bundled
     case system
@@ -57,9 +94,25 @@ struct CLIMessage: Decodable {
     var manifest: ToolManifest? = nil
     /// Why a `manifest` message's manifest did not decode, so the app can say exactly what is wrong.
     var manifestError: String? = nil
+    /// On `manifest` and `review`: the profile spec, whether it is trusted, and its content hash.
+    var spec: String? = nil
+    var trusted: Bool? = nil
+    var contentHash: String? = nil
+    /// On `profiles`: the active spec (where it came from is in `source`) and the starters.
+    var active: String? = nil
+    var starters: [StarterInfo]? = nil
+    /// On `review`: everything the profile runs or writes.
+    var text: String? = nil
+    /// On `configs`, `config_diff` and `backups`.
+    var configs: [ConfigItem]? = nil
+    var id: String? = nil
+    var diff: String? = nil
+    var backups: [BackupInfo]? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, tool, message, status, version, source, target, failed, manifest
+        case spec, trusted, active, starters, text, configs, id, diff, backups
+        case contentHash = "content_hash"
     }
 
     init(from decoder: Decoder) throws {
@@ -72,6 +125,16 @@ struct CLIMessage: Decodable {
         source = try c.decodeIfPresent(String.self, forKey: .source)
         target = try c.decodeIfPresent(String.self, forKey: .target)
         failed = try c.decodeIfPresent([String].self, forKey: .failed)
+        spec = try c.decodeIfPresent(String.self, forKey: .spec)
+        trusted = try c.decodeIfPresent(Bool.self, forKey: .trusted)
+        contentHash = try c.decodeIfPresent(String.self, forKey: .contentHash)
+        active = try c.decodeIfPresent(String.self, forKey: .active)
+        starters = try c.decodeIfPresent([StarterInfo].self, forKey: .starters)
+        text = try c.decodeIfPresent(String.self, forKey: .text)
+        configs = try c.decodeIfPresent([ConfigItem].self, forKey: .configs)
+        id = try c.decodeIfPresent(String.self, forKey: .id)
+        diff = try c.decodeIfPresent(String.self, forKey: .diff)
+        backups = try c.decodeIfPresent([BackupInfo].self, forKey: .backups)
         do {
             manifest = try c.decodeIfPresent(ToolManifest.self, forKey: .manifest)
         } catch let error as DecodingError {
@@ -116,6 +179,21 @@ final class InstallState {
     /// Why the manifest could not be loaded; the app shows it instead of an empty UI.
     var loadError: String?
 
+    /// The active profile: its spec, where the choice came from (flag, env, pointer, default),
+    /// whether it is trusted, and the starters to choose from.
+    var activeSpec: String?
+    var profileSource: String?
+    var profileTrusted = true
+    var profileContentHash: String?
+    var starters: [StarterInfo] = []
+    /// Set when the active profile needs a review before anything runs.
+    var pendingReview: ProfileReview?
+
+    /// The active profile's dotfiles, their diffs (loaded on demand) and the backups.
+    var configItems: [ConfigItem] = []
+    var configDiffs: [String: String] = [:]
+    var backups: [BackupInfo] = []
+
     /// Shown when CLI emits auth_required; user enters password in sheet.
     var pendingAuthRequest: AuthRequest?
     /// Called with password (or "" for cancel) when user submits/cancels.
@@ -158,6 +236,10 @@ final class InstallState {
         justInstalled = []
         lastError = nil
         configStatuses = [:]
+        configItems = []
+        configDiffs = [:]
+        backups = []
+        pendingReview = nil
     }
 
     /// Categories the manifest defines, or the built-in set when it defines none.
@@ -248,7 +330,28 @@ final class InstallState {
         if msg.type == "error" && msg.tool == nil {
             lastError = msg.message
         }
+        switch msg.type {
+        case "profiles":
+            activeSpec = msg.active
+            profileSource = msg.source
+            starters = msg.starters ?? []
+        case "review":
+            if let spec = msg.spec, let text = msg.text {
+                pendingReview = ProfileReview(spec: spec, text: text, contentHash: msg.contentHash)
+            }
+        case "configs":
+            configItems = msg.configs ?? []
+        case "config_diff":
+            if let id = msg.id { configDiffs[id] = msg.diff ?? "" }
+        case "backups":
+            backups = msg.backups ?? []
+        default:
+            break
+        }
         if msg.type == "manifest" {
+            activeSpec = msg.spec ?? activeSpec
+            profileTrusted = msg.trusted ?? true
+            profileContentHash = msg.contentHash
             if let manifest = msg.manifest {
                 self.manifest = manifest
                 log.info("Manifest for profile \(manifest.name, privacy: .public): \(manifest.tools.count) tools")

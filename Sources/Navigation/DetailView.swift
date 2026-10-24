@@ -4,6 +4,7 @@ struct DetailView: View {
     let item: SidebarItem
     let state: InstallState
     let bridge: CLIBridge
+    let useProfile: (String) async -> Void
 
     var body: some View {
         switch item {
@@ -11,6 +12,8 @@ struct DetailView: View {
             OverviewView(state: state, bridge: bridge)
         case .category(let cat):
             CategoryDetailView(category: cat, state: state, bridge: bridge)
+        case .profile:
+            ProfileView(state: state, bridge: bridge, useProfile: useProfile)
         case .configs:
             ConfigsView(state: state, bridge: bridge)
         case .about:

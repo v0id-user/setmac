@@ -35,6 +35,7 @@ struct SidebarView: View {
             }
 
             Section {
+                sidebarRow(.profile)
                 sidebarRow(.configs)
                 sidebarRow(.about)
             }
